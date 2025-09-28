@@ -12,8 +12,8 @@ from PyQt6.QtWidgets import (
     QPushButton, QMessageBox, QFileDialog, QProgressBar, QApplication
 )
 
-from signals.file_item import FileItemWidget
-from signals.thumb import ThumbnailWorker
+from .signals.file_item import FileItemWidget
+from .signals.thumb import ThumbnailWorker
 
 
 class DashboardPage(QWidget):

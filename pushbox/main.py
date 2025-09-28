@@ -1,26 +1,21 @@
-import base64
-import os
 import sys
-from pathlib import Path
 
-import requests
-from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
-from PyQt6.QtCore import QUrl
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtGui import QFont
-from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QMainWindow, QStackedWidget, QLineEdit
 )
-from PyQt6.QtWidgets import QMenu
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QMessageBox, QFileDialog, QProgressBar, QApplication
+    QWidget, QVBoxLayout, QLabel, QPushButton, QApplication
 )
 
 from core.config import ConfigManager
 from core.const import stylesheet
 from core.dashboard import DashboardPage
+from core.auth import AuthPage
+from core.backup import BackupPage
+from core.restore import RestorePage
+from core.settings import SettingsPage
 
 
 class OnboardingPage(QWidget):

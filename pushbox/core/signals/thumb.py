@@ -4,7 +4,7 @@ import requests
 from PyQt6.QtCore import QRunnable
 from PyQt6.QtGui import QPixmap
 
-from worker import WorkerSignals
+from .worker import WorkerSignals
 
 
 class ThumbnailWorker(QRunnable):
