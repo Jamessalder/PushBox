@@ -22,8 +22,13 @@ class DashboardPage(QWidget):
         self.config_manager = config_manager
 
         self.thread_pool = QThreadPool()
+
         self.cache_dir = Path.home() / ".pushbox_cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+
+        self.temp_dir = Path.home() / ".pushbox_cache" / "temp_files"
+        self.temp_dir.mkdir(parents=True, exist_ok=True)
+
         self.file_widgets = {}
 
         layout = QHBoxLayout(self)
