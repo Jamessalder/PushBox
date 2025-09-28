@@ -189,10 +189,6 @@ class BackupPage(QWidget):
             QMessageBox.information(self, "No folder", "Choose a folder before backup.")
             return
 
-        # TODO: create repo on GitHub using token and username from config_manager
-        # TODO: initialize local temporary repo or use git to add/commit files, then push to created repo
-        # For now simulate upload progress by iterating files and updating progress bar
-
         total_size = self.folder_size_bytes(self.current_folder)
         if total_size == 0:
             QMessageBox.information(self, "Empty", "Selected folder is empty.")
