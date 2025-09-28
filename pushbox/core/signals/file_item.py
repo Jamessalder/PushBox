@@ -19,6 +19,10 @@ class FileItemWidget(QWidget):
         self.file_path = path
         self.setToolTip(f"File: {self.file_path.name}\nLocation: {self.file_path}")
 
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        # Connect that signal to our method that shows the menu
+        self.customContextMenuRequested.connect(self.show_context_menu)
+
         vbox = QVBoxLayout(self)
         vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -50,8 +54,6 @@ class FileItemWidget(QWidget):
                 QMessageBox.information(self, "File Not Found",
                                         "This file is not available locally. Download it again using the right-click menu.")
 
-        elif event.button() == Qt.MouseButton.RightButton:
-            self.show_context_menu(event.globalPos())
 
         super().mousePressEvent(event)
 
@@ -59,4 +61,4 @@ class FileItemWidget(QWidget):
         menu = QMenu(self)
         download_action = menu.addAction("Download again...")
         download_action.triggered.connect(lambda: self.download_requested.emit(self.file_path))
-        menu.exec(position)
+        menu.exec(self.mapToGlobal(position))
