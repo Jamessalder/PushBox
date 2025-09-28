@@ -62,8 +62,10 @@ class BackupPage(QWidget):
         self.load_folders_from_config()
 
     def load_folders_from_config(self):
-        self.virtual_folders = self.config_manager.data.get("virtual_folders", {})
-        for folder in self.virtual_folders.keys():
+        self.virtual_folders = {}
+        saved = self.config_manager.data.get("virtual_folders", {})
+        for folder, files in saved.items():
+            self.virtual_folders[folder] = [Path(f) for f in files]
             self.folder_list.addItem(folder)
 
     def save_folders_to_config(self):
