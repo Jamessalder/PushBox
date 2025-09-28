@@ -32,7 +32,7 @@ class OnboardingPage(QWidget):
             layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             label_title = QLabel(title)
-            label_title.setFont(QFont("Montserrat", 26, QFont.Weight.Bold))
+            label_title.setFont(QFont("Montserrat", 35, QFont.Weight.Bold))
             label_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             label_sub = QLabel(subtitle)
@@ -76,7 +76,7 @@ class AuthPage(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         title = QLabel("PushBox")
-        title.setFont(QFont("Montserrat", 32, QFont.Weight.Bold))
+        title.setFont(QFont("Montserrat", 60, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         subtitle = QLabel("Secure GitHub Backup")
@@ -198,7 +198,6 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(stylesheet)
 
 
-# ---------- Run ----------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
