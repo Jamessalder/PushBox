@@ -1,22 +1,16 @@
 import os
-import shutil
+import base64
 from pathlib import Path
 import requests
-import subprocess
-
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QListWidget, QListWidgetItem, QFileDialog, QProgressBar, QMessageBox
-)
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QListWidget, QListWidgetItem, QFileDialog, \
+    QProgressBar, QMessageBox, QApplication
 from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt
 from config import ConfigManager
 
-
 APP_DIR = Path(os.getenv("LOCALAPPDATA")) / "PushBox"
 STAGING_DIR = APP_DIR / "staging"
 STAGING_DIR.mkdir(parents=True, exist_ok=True)
-
 
 class BackupPage(QWidget):
     def __init__(self, config_manager: ConfigManager):
@@ -25,36 +19,30 @@ class BackupPage(QWidget):
 
         layout = QVBoxLayout(self)
 
-        # Top buttons
-        btn_layout = QHBoxLayout()
+        # Buttons
         self.new_folder_btn = QPushButton("+ New Folder")
         self.add_files_btn = QPushButton("Add Files")
+        self.upload_btn = QPushButton("Upload Folder")
         self.add_files_btn.setEnabled(False)
-        self.upload_btn = QPushButton("Upload to GitHub")
         self.upload_btn.setEnabled(False)
-        btn_layout.addWidget(self.new_folder_btn)
-        btn_layout.addWidget(self.add_files_btn)
-        btn_layout.addWidget(self.upload_btn)
-        layout.addLayout(btn_layout)
+        layout.addWidget(self.new_folder_btn)
+        layout.addWidget(self.add_files_btn)
+        layout.addWidget(self.upload_btn)
 
-        # Folder list
-        layout.addWidget(QLabel("Folders (Staging / Repo)"))
+        # Folder & file views
+        layout.addWidget(QLabel("Folders (Staging)"))
         self.folder_list = QListWidget()
         layout.addWidget(self.folder_list)
-
-        # File view
         layout.addWidget(QLabel("Files in Selected Folder"))
         self.file_view = QListWidget()
         layout.addWidget(self.file_view)
 
         # Progress bar
         self.progress = QProgressBar()
-        self.progress.setValue(0)
         layout.addWidget(self.progress)
 
         self.setLayout(layout)
 
-        # Internal state
         self.current_folder_name = None
         self.current_folder_path = None
 
@@ -64,7 +52,6 @@ class BackupPage(QWidget):
         self.upload_btn.clicked.connect(self.upload_folder_to_github)
         self.folder_list.currentTextChanged.connect(self.on_folder_selected)
 
-        # Load existing staging folders
         self.load_staging_folders()
 
     def create_new_folder(self):
@@ -83,14 +70,10 @@ class BackupPage(QWidget):
         files, _ = QFileDialog.getOpenFileNames(self, "Select files to add")
         if not files:
             return
-
-        total_size = sum(os.path.getsize(f) for f in files)
-        if total_size > 1_000_000_000:
-            QMessageBox.warning(self, "Too large", "Files exceed 1GB limit.")
-            return
-
         for f in files:
-            shutil.copy(f, self.current_folder_path)
+            dest = self.current_folder_path / Path(f).name
+            if not dest.exists():
+                dest.write_bytes(Path(f).read_bytes())
         self.load_folder_files(self.current_folder_path)
         self.upload_btn.setEnabled(True)
 
@@ -99,14 +82,14 @@ class BackupPage(QWidget):
             QMessageBox.warning(self, "No folder", "Select a folder first.")
             return
 
-        repo_name = self.current_folder_name
-
         cfg = self.config_manager.load_config()
         username = cfg.get("username")
         token = cfg.get("token")
         if not username or not token:
-            QMessageBox.warning(self, "Credentials Missing", "Set your GitHub username/token first.")
+            QMessageBox.warning(self, "Credentials Missing", "Set GitHub username/token first.")
             return
+
+        repo_name = self.current_folder_name
 
         # Create GitHub repo
         url = "https://api.github.com/user/repos"
@@ -116,23 +99,23 @@ class BackupPage(QWidget):
             QMessageBox.critical(self, "GitHub Error", f"Could not create repo:\n{resp.text}")
             return
 
-        # Init git, commit, push
-        try:
-            subprocess.run(["git", "init"], cwd=self.current_folder_path, check=True)
-            subprocess.run(["git", "remote", "add", "origin",
-                            f"https://{username}:{token}@github.com/{username}/{repo_name}.git"],
-                           cwd=self.current_folder_path, check=True)
-            subprocess.run(["git", "add", "."], cwd=self.current_folder_path, check=True)
-            subprocess.run(["git", "commit", "-m", "Backup from PushBox"], cwd=self.current_folder_path, check=True)
-            subprocess.run(["git", "branch", "-M", "main"], cwd=self.current_folder_path, check=True)
-            subprocess.run(["git", "push", "-u", "origin", "main"], cwd=self.current_folder_path, check=True)
-        except subprocess.CalledProcessError as e:
-            QMessageBox.critical(self, "Git Error", str(e))
-            return
-
+        # Upload files individually
+        files = list(self.current_folder_path.iterdir())
+        total = len(files)
+        for i, f in enumerate(files, 1):
+            with open(f, "rb") as fp:
+                content = base64.b64encode(fp.read()).decode()
+            path = f.name
+            api_url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{path}"
+            r = requests.put(api_url, headers=headers, json={"message": "PushBox backup", "content": content})
+            if r.status_code not in (200, 201):
+                QMessageBox.warning(self, "Upload Failed", f"Failed to upload {f.name}")
+            self.progress.setValue(int(i/total*100))
+            QApplication.processEvents()
+        self.progress.setValue(100)
         QMessageBox.information(self, "Backup Complete", f"Folder uploaded as repo: {repo_name}")
 
-        # Add to config local list
+        # Update local config
         repos = cfg.get("repos", [])
         if repo_name not in repos:
             repos.append(repo_name)
