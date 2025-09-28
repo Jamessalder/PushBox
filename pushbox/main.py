@@ -335,8 +335,12 @@ class DashboardPage(QWidget):
         self.load_folders_from_config()
 
     def load_folders_from_config(self):
-        self.virtual_folders = self.config_manager.data.get("virtual_folders", {})
-        for folder in self.virtual_folders.keys():
+        """Load virtual folders from config and convert file paths to Path objects."""
+        raw_folders = self.config_manager.data.get("virtual_folders", {})
+        self.virtual_folders = {}
+        for folder, file_list in raw_folders.items():
+            # convert each string path to Path object
+            self.virtual_folders[folder] = [Path(f) for f in file_list]
             self.folder_list.addItem(folder)
 
     def save_folders_to_config(self):
