@@ -2,24 +2,18 @@ import os
 import json
 
 
+# ConfigManager
 class ConfigManager:
-    def __init__(self, app_name="PushBox"):
-        self.config_dir = os.path.join(os.getenv("LOCALAPPDATA"), app_name)
-        self.config_file = os.path.join(self.config_dir, "config.json")
-
-        if not os.path.exists(self.config_dir):
-            os.makedirs(self.config_dir)
-
-        if not os.path.exists(self.config_file):
-            self.save_config({"username": "", "token": ""})
+    def __init__(self, config_file="config.json"):
+        self.config_file = config_file
+        self.data = self.load_config()
 
     def load_config(self):
-        try:
+        if os.path.exists(self.config_file):
             with open(self.config_file, "r") as f:
                 return json.load(f)
-        except Exception:
-            return {"username": "", "token": ""}
+        return {"onboarding_done": False, "token": ""}
 
-    def save_config(self, data):
+    def save_config(self):
         with open(self.config_file, "w") as f:
-            json.dump(data, f, indent=4)
+            json.dump(self.data, f, indent=2)
