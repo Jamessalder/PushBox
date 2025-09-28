@@ -1,19 +1,22 @@
-import json
 import os
+import sys
 from pathlib import Path
 
+import requests
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QStackedWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton,
-    QListWidget, QListWidgetItem, QInputDialog, QProgressBar, QMessageBox,
+    QListWidget, QInputDialog, QProgressBar, QMessageBox,
     QFileDialog
 )
-from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt
-import sys
-from core.const import stylesheet
+from PyQt6.QtWidgets import QListWidgetItem
+
 from core.config import ConfigManager
+from core.const import stylesheet
 
 
 class OnboardingPage(QWidget):
@@ -350,10 +353,29 @@ class DashboardPage(QWidget):
 
     def load_repo_files(self, repo_name):
         self.file_view.clear()
-        # TODO: fetch remote file tree from GitHub API and populate file_view
-        # For now show mock entries
-        mock_files = ["README.md", "notes.txt", "image.png"]
-        self.file_view.addItems(mock_files)
+        cfg = self.config_manager.load_config()
+        username = cfg["username"];
+        token = cfg["token"]
+
+        url = f"https://api.github.com/repos/{username}/{repo_name}/contents/"
+        headers = {"Authorization": f"token {token}"}
+        resp = requests.get(url, headers=headers)
+        if resp.status_code != 200:
+            return
+
+        for item in resp.json():
+            if item["type"] == "file":
+                name = item["name"]
+                download_url = item["download_url"]
+
+                lw_item = QListWidgetItem(name)
+                # if image → show thumbnail
+                if name.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
+                    img_bytes = requests.get(download_url).content
+                    pixmap = QPixmap()
+                    pixmap.loadFromData(img_bytes)
+                    lw_item.setIcon(QIcon(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)))
+                self.file_view.addItem(lw_item)
 
 
 # ---------- Main ----------
