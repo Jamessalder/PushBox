@@ -185,9 +185,6 @@ class DashboardPage(QWidget):
         layout.addWidget(self.substack, stretch=1)
         self.setLayout(layout)
 
-
-# ---------- Main ----------
-# ---------- Main ----------
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -207,7 +204,9 @@ class MainWindow(QMainWindow):
         else:
             self.mainStack.setCurrentIndex(0)
 
-        # Pages
+        self.config_manager.data["onboarding_done"] = True
+        self.config_manager.save_config()
+
         self.onboarding_page = OnboardingPage(self.show_auth)
         self.auth_page = AuthPage(self.show_dashboard, self.config_manager)
         self.dashboard_page = DashboardPage()
