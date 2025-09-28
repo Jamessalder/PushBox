@@ -408,7 +408,7 @@ class DashboardPage(QWidget):
         self.folder_list = QListWidget()
         left_v.addWidget(self.folder_list)
 
-        self.new_folder_btn = QPushButton("+ New Virtual Folder")
+        self.new_folder_btn = QPushButton("+ New Backup")
         self.add_file_btn = QPushButton("+ Add File(s)")
         self.upload_btn = QPushButton("Push Selected Folder to GitHub")
 
@@ -561,6 +561,11 @@ class DashboardPage(QWidget):
                 self.add_file_item(path)
         self.upload_btn.setEnabled(True)
         self.save_folders_to_config()
+
+        try:
+            self.upload_folder()
+        except Exception as e:
+            pass
 
     def add_file_item(self, path: Path):
         """Creates a placeholder widget and starts a background download for the thumbnail."""
