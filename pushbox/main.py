@@ -363,8 +363,8 @@ class DashboardPage(QWidget):
             return
         for f in files:
             path = Path(f)
-            if path not in self.virtual_folders[self.current_folder]:
-                self.virtual_folders[self.current_folder].append(path)
+            if str(path) not in self.virtual_folders[self.current_folder]:
+                self.virtual_folders[self.current_folder].append(str(path))
                 self.add_file_item(path)
         self.upload_btn.setEnabled(True)
         self.save_folders_to_config()
@@ -389,10 +389,15 @@ class DashboardPage(QWidget):
         self.file_list.addItem(lw_item)
 
     def upload_folder(self):
+        print(f"[DEBUG] Starting upload for folder: {self.current_folder}")
         if not self.current_folder:
+            print("[DEBUG] No current folder selected")
             return
+
         files = self.virtual_folders.get(self.current_folder, [])
+        print(f"[DEBUG] Files to upload: {[f.name for f in files]}")
         if not files:
+            print("[DEBUG] Folder empty, aborting upload")
             QMessageBox.information(self, "Empty", "No files to upload.")
             return
 
@@ -400,44 +405,80 @@ class DashboardPage(QWidget):
         username = cfg.get("username")
         token = cfg.get("token")
         if not username or not token:
+            print("[DEBUG] Missing GitHub credentials")
             QMessageBox.warning(self, "Auth missing", "Enter GitHub username & token first.")
             return
 
-        repo_name = self.current_folder  # using virtual folder name as repo
+        import base64
+        from urllib.parse import quote
+
+        repo_name = self.current_folder
         headers = {"Authorization": f"token {token}"}
 
-        # 1️⃣ Create repo if it doesn't exist
+        # Create repo if missing
         repo_url = f"https://api.github.com/repos/{username}/{repo_name}"
-        r = requests.get(repo_url, headers=headers)
-        if r.status_code == 404:
-            payload = {"name": repo_name, "private": False}
-            r_create = requests.post("https://api.github.com/user/repos", headers=headers, json=payload)
-            if r_create.status_code not in (201, 200):
-                QMessageBox.critical(self, "Error", f"Cannot create repo: {r_create.json()}")
-                return
+        try:
+            r = requests.get(repo_url, headers=headers)
+            print(f"[DEBUG] GET repo status: {r.status_code}")
+            if r.status_code == 404:
+                print("[DEBUG] Repo not found, creating...")
+                payload = {"name": repo_name, "private": False}
+                r_create = requests.post("https://api.github.com/user/repos", headers=headers, json=payload)
+                print(f"[DEBUG] POST create repo status: {r_create.status_code}")
+                if r_create.status_code not in (200, 201):
+                    print(f"[DEBUG] Failed to create repo: {r_create.json()}")
+                    QMessageBox.critical(self, "Error",
+                                         f"Cannot create repo:\n{r_create.status_code}\n{r_create.json()}")
+                    return
+        except Exception as e:
+            print(f"[DEBUG] Exception checking/creating repo: {e}")
+            QMessageBox.critical(self, "Error", f"Exception checking/creating repo:\n{e}")
+            return
 
-        # 2️⃣ Upload files individually
+        # Upload files
         total_size = sum(f.stat().st_size for f in files)
         uploaded = 0
         self.progress.setValue(0)
 
         for f in files:
-            content = f.read_bytes()
-            import base64
+            print(f"[DEBUG] Uploading file: {f.name}")
+            try:
+                content = f.read_bytes()
+            except Exception as e:
+                print(f"[DEBUG] Cannot read {f.name}: {e}")
+                QMessageBox.warning(self, "Read Error", f"Cannot read {f.name}:\n{e}")
+                continue
+
             encoded = base64.b64encode(content).decode()
-            file_path = f.name  # root of repo
+            file_path = quote(f.name)
             url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{file_path}"
-            payload = {"message": f"Add {file_path}", "content": encoded}
-            r_file = requests.put(url, headers=headers, json=payload)
-            if r_file.status_code not in (201, 200):
-                QMessageBox.warning(self, "Upload failed", f"Failed to upload {file_path}: {r_file.json()}")
+
+            try:
+                r_check = requests.get(url, headers=headers)
+                print(f"[DEBUG] GET file status: {r_check.status_code}")
+                payload = {"message": f"Add {f.name}", "content": encoded}
+                if r_check.status_code == 200:
+                    payload["sha"] = r_check.json()["sha"]
+
+                r_file = requests.put(url, headers=headers, json=payload)
+                print(f"[DEBUG] PUT file status: {r_file.status_code}")
+                if r_file.status_code not in (200, 201):
+                    print(f"[DEBUG] Failed upload: {r_file.json()}")
+                    QMessageBox.warning(self, "Upload Failed", f"Failed to upload {f.name}:\n{r_file.json()}")
+                    continue
+            except Exception as e:
+                print(f"[DEBUG] Exception uploading {f.name}: {e}")
+                QMessageBox.warning(self, "Network Error", f"Error uploading {f.name}:\n{e}")
+                continue
+
             uploaded += f.stat().st_size
             perc = int(uploaded / total_size * 100)
             self.progress.setValue(perc)
             QApplication.processEvents()
 
         self.progress.setValue(100)
-        QMessageBox.information(self, "Backup complete", f"Virtual folder '{self.current_folder}' uploaded to GitHub.")
+        print(f"[DEBUG] Upload complete for folder: {self.current_folder}")
+        QMessageBox.information(self, "Backup Complete", f"Virtual folder '{self.current_folder}' uploaded to GitHub.")
 
 
 # ---------- Main ----------
