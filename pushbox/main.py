@@ -2,21 +2,79 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QStackedWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton,
-    QListWidget, QListWidgetItem, QFrame
+    QListWidget, QListWidgetItem
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 import sys
+from core.const import stylesheet
 
 
-# ---------- Pages ----------
+# ---------- Onboarding ----------
+class OnboardingPage(QWidget):
+    def __init__(self, switch_to_auth):
+        super().__init__()
+
+        self.stack = QStackedWidget()
+        self.pages = []
+
+        # Define onboarding content (title, subtitle)
+        data = [
+            ("Welcome to PushBox 🚀", "Your secure GitHub-powered cloud backup tool."),
+            ("Why GitHub?", "GitHub gives you free, fast, and reliable cloud storage using repositories, and we can use that storage as our personal storage backup."),
+            ("How it Works ⚙️", "PushBox creates repos, pushes your folders, and restores when needed."),
+            ("You're Ready!", "Let's get started with secure backups.")
+        ]
+
+        for i, (title, subtitle) in enumerate(data):
+            page = QWidget()
+            layout = QVBoxLayout()
+            layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            label_title = QLabel(title)
+            label_title.setFont(QFont("Montserrat", 26, QFont.Weight.Bold))
+            label_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            label_sub = QLabel(subtitle)
+            label_sub.setFont(QFont("Arial", 12))
+            label_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label_sub.setWordWrap(True)
+
+            btn = QPushButton("Next" if i < len(data)-1 else "Get Started")
+            btn.setFixedWidth(150)
+            btn.clicked.connect(
+                (lambda _, idx=i: self.next_page(idx, switch_to_auth))
+            )
+
+            layout.addStretch()
+            layout.addWidget(label_title)
+            layout.addSpacing(10)
+            layout.addWidget(label_sub)
+            layout.addStretch()
+            layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+            page.setLayout(layout)
+            self.pages.append(page)
+            self.stack.addWidget(page)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.stack)
+        self.setLayout(vbox)
+
+    def next_page(self, index, switch_to_auth):
+        if index < len(self.pages)-1:
+            self.stack.setCurrentIndex(index+1)
+        else:
+            switch_to_auth()
+
+
+# ---------- Auth ----------
 class AuthPage(QWidget):
     def __init__(self, switch_to_dashboard):
         super().__init__()
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Title
         title = QLabel("PushBox")
         title.setFont(QFont("Montserrat", 32, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -46,6 +104,7 @@ class AuthPage(QWidget):
         self.setLayout(layout)
 
 
+# ---------- Backup ----------
 class BackupPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -62,6 +121,7 @@ class BackupPage(QWidget):
         self.setLayout(layout)
 
 
+# ---------- Restore ----------
 class RestorePage(QWidget):
     def __init__(self):
         super().__init__()
@@ -70,6 +130,7 @@ class RestorePage(QWidget):
         self.setLayout(layout)
 
 
+# ---------- Settings ----------
 class SettingsPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -78,29 +139,27 @@ class SettingsPage(QWidget):
         self.setLayout(layout)
 
 
+# ---------- Dashboard ----------
 class DashboardPage(QWidget):
     def __init__(self):
         super().__init__()
         layout = QHBoxLayout()
 
-        # Sidebar
         self.sidebar = QListWidget()
         self.sidebar.setFixedWidth(180)
         self.sidebar.addItem(QListWidgetItem("Backup"))
         self.sidebar.addItem(QListWidgetItem("Restore"))
         self.sidebar.addItem(QListWidgetItem("Settings"))
 
-        # Substack
         self.substack = QStackedWidget()
         self.backup_page = BackupPage()
         self.restore_page = RestorePage()
         self.settings_page = SettingsPage()
 
-        self.substack.addWidget(self.backup_page)   # index 0
-        self.substack.addWidget(self.restore_page)  # index 1
-        self.substack.addWidget(self.settings_page) # index 2
+        self.substack.addWidget(self.backup_page)
+        self.substack.addWidget(self.restore_page)
+        self.substack.addWidget(self.settings_page)
 
-        # Switch on sidebar click
         self.sidebar.currentRowChanged.connect(self.substack.setCurrentIndex)
 
         layout.addWidget(self.sidebar)
@@ -108,7 +167,7 @@ class DashboardPage(QWidget):
         self.setLayout(layout)
 
 
-# ---------- Main Window ----------
+# ---------- Main ----------
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -117,65 +176,26 @@ class MainWindow(QMainWindow):
         self.mainStack = QStackedWidget()
         self.setCentralWidget(self.mainStack)
 
-        # Pages
+        self.onboarding_page = OnboardingPage(self.show_auth)
         self.auth_page = AuthPage(self.show_dashboard)
         self.dashboard_page = DashboardPage()
 
-        self.mainStack.addWidget(self.auth_page)     # index 0
-        self.mainStack.addWidget(self.dashboard_page) # index 1
+        self.mainStack.addWidget(self.onboarding_page)   # index 0
+        self.mainStack.addWidget(self.auth_page)         # index 1
+        self.mainStack.addWidget(self.dashboard_page)    # index 2
 
         self.mainStack.setCurrentIndex(0)
 
-        # Apply Styles
         self.apply_styles()
 
-    def show_dashboard(self):
+    def show_auth(self):
         self.mainStack.setCurrentIndex(1)
 
+    def show_dashboard(self):
+        self.mainStack.setCurrentIndex(2)
+
     def apply_styles(self):
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #121212;
-                color: #eeeeee;
-                font-family: 'Segoe UI', sans-serif;
-                font-size: 14px;
-            }
-            QLineEdit {
-                padding: 8px;
-                border: 2px solid #333;
-                border-radius: 6px;
-                background-color: #1e1e1e;
-                color: #fff;
-            }
-            QLineEdit:focus {
-                border: 2px solid #00c6ff;
-                background-color: #222;
-            }
-            QPushButton {
-                padding: 8px;
-                border-radius: 6px;
-                background-color: #00c6ff;
-                color: #121212;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #0072ff;
-                color: white;
-            }
-            QListWidget {
-                background-color: #1e1e1e;
-                border: none;
-                padding: 10px;
-            }
-            QListWidget::item {
-                padding: 10px;
-                border-radius: 4px;
-            }
-            QListWidget::item:selected {
-                background-color: #0072ff;
-                color: white;
-            }
-        """)
+        self.setStyleSheet(stylesheet)
 
 
 # ---------- Run ----------
