@@ -7,13 +7,13 @@ from PyQt6.QtWidgets import (
     QApplication
 )
 
-from core.config import ConfigManager
-from core.const import stylesheet
-from core.dashboard import DashboardPage
+from .core.config import ConfigManager
+from .core.const import stylesheet
+from .core.dashboard import DashboardPage
 from pushbox.core.init.auth import AuthPage
 from pushbox.core.files.backup import BackupPage
 from pushbox.core.files.restore import RestorePage
-from core.settings import SettingsPage
+from .core.settings import SettingsPage
 from pushbox.core.init.onboarding import OnboardingPage
 
 
