@@ -1,12 +1,12 @@
-import os
-from pathlib import Path
-import requests
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QListWidget, QListWidgetItem, QFileDialog, QProgressBar, QMessageBox, QInputDialog, QApplication
+    QFileDialog, QProgressBar, QMessageBox, QInputDialog, QScrollArea, QGridLayout, QApplication
 )
+from PyQt6.QtGui import QPixmap, QIcon
+from PyQt6.QtCore import Qt
+from pathlib import Path
+import requests
+import base64
 
 class BackupPage(QWidget):
     """Manages virtual folders and files inside them, ready for GitHub upload"""
@@ -19,6 +19,7 @@ class BackupPage(QWidget):
         left_v = QVBoxLayout()
         left_v.addWidget(QLabel("Virtual Folders"))
 
+        from PyQt6.QtWidgets import QListWidget
         self.folder_list = QListWidget()
         left_v.addWidget(self.folder_list)
 
@@ -32,12 +33,18 @@ class BackupPage(QWidget):
         left_v.addWidget(self.add_file_btn)
         left_v.addWidget(self.upload_btn)
 
-        # Right: Files inside selected virtual folder
+        # Right: Files in a scrollable grid
         right_v = QVBoxLayout()
         right_v.addWidget(QLabel("Files in Virtual Folder"))
 
-        self.file_list = QListWidget()
-        right_v.addWidget(self.file_list)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.grid_widget = QWidget()
+        self.grid_layout = QGridLayout(self.grid_widget)
+        self.grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.scroll.setWidget(self.grid_widget)
+
+        right_v.addWidget(self.scroll)
 
         self.progress = QProgressBar()
         self.progress.setValue(0)
@@ -45,11 +52,10 @@ class BackupPage(QWidget):
 
         layout.addLayout(left_v, stretch=1)
         layout.addLayout(right_v, stretch=2)
-
         self.setLayout(layout)
 
         # Internal state
-        self.virtual_folders = {}  # folder_name -> list of file paths
+        self.virtual_folders = {}  # folder_name -> list of Path objects
         self.current_folder = None
 
         # Hooks
@@ -58,7 +64,6 @@ class BackupPage(QWidget):
         self.upload_btn.clicked.connect(self.upload_folder)
         self.folder_list.currentTextChanged.connect(self.on_folder_selected)
 
-        # Load saved virtual folders (local cache)
         self.load_folders_from_config()
 
     def load_folders_from_config(self):
@@ -69,10 +74,7 @@ class BackupPage(QWidget):
             self.folder_list.addItem(folder)
 
     def save_folders_to_config(self):
-        # Convert Path objects to strings before saving
-        serialized = {}
-        for folder, files in self.virtual_folders.items():
-            serialized[folder] = [str(f) for f in files]
+        serialized = {f: [str(p) for p in paths] for f, paths in self.virtual_folders.items()}
         self.config_manager.data["virtual_folders"] = serialized
         self.config_manager.save_config()
 
@@ -90,7 +92,12 @@ class BackupPage(QWidget):
 
     def on_folder_selected(self, folder_name):
         self.current_folder = folder_name
-        self.file_list.clear()
+        # Clear previous grid items
+        for i in reversed(range(self.grid_layout.count())):
+            w = self.grid_layout.itemAt(i).widget()
+            if w:
+                w.setParent(None)
+
         if folder_name:
             self.add_file_btn.setEnabled(True)
             self.upload_btn.setEnabled(len(self.virtual_folders[folder_name]) > 0)
@@ -115,17 +122,34 @@ class BackupPage(QWidget):
         self.save_folders_to_config()
 
     def add_file_item(self, path):
-        lw_item = QListWidgetItem(path.name)
-        try:
-            if path.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif"):
+        # Widget with thumbnail + filename
+        file_widget = QWidget()
+        vbox = QVBoxLayout(file_widget)
+        vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Thumbnail for images
+        if path.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif"):
+            try:
                 pixmap = QPixmap(str(path))
                 if not pixmap.isNull():
-                    lw_item.setIcon(QIcon(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)))
-            else:
-                lw_item.setIcon(self.style().standardIcon(QPushButton().style().SP_FileIcon))
-        except Exception:
-            lw_item.setIcon(self.style().standardIcon(QPushButton().style().SP_FileIcon))
-        self.file_list.addItem(lw_item)
+                    pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)
+                    lbl_img = QLabel()
+                    lbl_img.setPixmap(pixmap)
+                    lbl_img.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    vbox.addWidget(lbl_img)
+            except Exception as e:
+                print(f"Error loading image {path}: {e}")
+
+        lbl_name = QLabel(path.name)
+        lbl_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_name.setWordWrap(True)
+        vbox.addWidget(lbl_name)
+
+        # Add to grid
+        cols = 4
+        pos = self.grid_layout.count()
+        r, c = divmod(pos, cols)
+        self.grid_layout.addWidget(file_widget, r, c)
 
     def upload_folder(self):
         if not self.current_folder:
@@ -142,38 +166,33 @@ class BackupPage(QWidget):
             QMessageBox.warning(self, "Auth missing", "Enter GitHub username & token first.")
             return
 
-        repo_name = self.current_folder  # using virtual folder name as repo
+        repo_name = self.current_folder
         headers = {"Authorization": f"token {token}"}
 
-        # 1️⃣ Create repo if it doesn't exist
+        # Create repo if missing
         repo_url = f"https://api.github.com/repos/{username}/{repo_name}"
         r = requests.get(repo_url, headers=headers)
         if r.status_code == 404:
-            # Create repo
             payload = {"name": repo_name, "private": False}
             r_create = requests.post("https://api.github.com/user/repos", headers=headers, json=payload)
             if r_create.status_code not in (201, 200):
                 QMessageBox.critical(self, "Error", f"Cannot create repo: {r_create.json()}")
                 return
 
-        # 2️⃣ Upload files individually
         total_size = sum(f.stat().st_size for f in files)
         uploaded = 0
         self.progress.setValue(0)
 
         for f in files:
             content = f.read_bytes()
-            import base64
             encoded = base64.b64encode(content).decode()
-            file_path = f.name  # root of repo
-            url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{file_path}"
-            payload = {"message": f"Add {file_path}", "content": encoded}
+            url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{f.name}"
+            payload = {"message": f"Add {f.name}", "content": encoded}
             r_file = requests.put(url, headers=headers, json=payload)
             if r_file.status_code not in (201, 200):
-                QMessageBox.warning(self, "Upload failed", f"Failed to upload {file_path}: {r_file.json()}")
+                QMessageBox.warning(self, "Upload failed", f"Failed to upload {f.name}: {r_file.json()}")
             uploaded += f.stat().st_size
-            perc = int(uploaded / total_size * 100)
-            self.progress.setValue(perc)
+            self.progress.setValue(int(uploaded / total_size * 100))
             QApplication.processEvents()
 
         self.progress.setValue(100)
