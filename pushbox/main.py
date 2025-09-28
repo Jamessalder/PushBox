@@ -2,20 +2,12 @@ import os
 import sys
 from pathlib import Path
 
-import requests
-from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
-from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget,
-    QStackedWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton,
-    QListWidget, QInputDialog, QProgressBar, QMessageBox,
-    QFileDialog
+    QMainWindow, QWidget,
+    QStackedWidget, QLineEdit
 )
-from PyQt6.QtWidgets import QListWidgetItem
 
-from core.config import ConfigManager
 from core.const import stylesheet
 
 
@@ -277,75 +269,160 @@ class SettingsPage(QWidget):
 
 
 # ---------- Dashboard ----------
-import requests
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem
-from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtCore import Qt
 from core.config import ConfigManager
 
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".avi", ".mkv")
 
+import requests
+from pathlib import Path
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap, QIcon
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QListWidget,
+    QListWidgetItem, QPushButton, QMessageBox, QFileDialog, QProgressBar, QApplication
+)
+
 class DashboardPage(QWidget):
-    def __init__(self, config_manager: ConfigManager):
+    def __init__(self, config_manager):
         super().__init__()
         self.config_manager = config_manager
-        layout = QVBoxLayout(self)
 
-        layout.addWidget(QLabel("Your Backup Repos"))
+        layout = QHBoxLayout(self)
 
-        self.repo_list = QListWidget()
-        layout.addWidget(self.repo_list)
+        # Left: Virtual Folders
+        left_v = QVBoxLayout()
+        left_v.addWidget(QLabel("Your Virtual Folders"))
 
-        layout.addWidget(QLabel("Files in Selected Repo"))
-        self.file_view = QListWidget()
-        layout.addWidget(self.file_view)
+        self.folder_list = QListWidget()
+        left_v.addWidget(self.folder_list)
 
+        self.add_file_btn = QPushButton("+ Add File(s)")
+        self.upload_btn = QPushButton("Push Selected Folder to GitHub")
+        self.upload_btn.setEnabled(False)
+        self.add_file_btn.setEnabled(False)
+
+        left_v.addWidget(self.add_file_btn)
+        left_v.addWidget(self.upload_btn)
+
+        # Right: Files inside selected folder
+        right_v = QVBoxLayout()
+        right_v.addWidget(QLabel("Files in Selected Folder"))
+
+        self.file_list = QListWidget()
+        right_v.addWidget(self.file_list)
+
+        self.progress = QProgressBar()
+        self.progress.setValue(0)
+        right_v.addWidget(self.progress)
+
+        layout.addLayout(left_v, stretch=1)
+        layout.addLayout(right_v, stretch=2)
         self.setLayout(layout)
 
-        self.repo_list.currentTextChanged.connect(self.load_repo_files)
-        self.load_repos()
+        # Internal state
+        self.virtual_folders = {}  # folder_name -> list of Path objects
+        self.current_folder = None
 
-    def load_repos(self):
-        cfg = self.config_manager.load_config()
-        repos = cfg.get("repos", [])
-        self.repo_list.clear()
-        self.repo_list.addItems(repos)
+        # Hooks
+        self.folder_list.currentTextChanged.connect(self.on_folder_selected)
+        self.add_file_btn.clicked.connect(self.add_files_to_folder)
+        self.upload_btn.clicked.connect(self.upload_folder)
 
-    def load_repo_files(self, repo_name):
-        self.file_view.clear()
-        if not repo_name:
+        # Load folders from config
+        self.load_folders_from_config()
+
+    def load_folders_from_config(self):
+        self.virtual_folders = self.config_manager.data.get("virtual_folders", {})
+        for folder in self.virtual_folders.keys():
+            self.folder_list.addItem(folder)
+
+    def save_folders_to_config(self):
+        self.config_manager.data["virtual_folders"] = self.virtual_folders
+        self.config_manager.save_config()
+
+    def on_folder_selected(self, folder_name):
+        self.current_folder = folder_name
+        self.file_list.clear()
+        if folder_name:
+            self.add_file_btn.setEnabled(True)
+            self.upload_btn.setEnabled(len(self.virtual_folders[folder_name]) > 0)
+            for file_path in self.virtual_folders[folder_name]:
+                self.add_file_item(file_path)
+        else:
+            self.add_file_btn.setEnabled(False)
+            self.upload_btn.setEnabled(False)
+
+    def add_files_to_folder(self):
+        if not self.current_folder:
+            return
+        files, _ = QFileDialog.getOpenFileNames(self, "Select files")
+        if not files:
+            return
+        for f in files:
+            path = Path(f)
+            if path not in self.virtual_folders[self.current_folder]:
+                self.virtual_folders[self.current_folder].append(path)
+                self.add_file_item(path)
+        self.upload_btn.setEnabled(True)
+        self.save_folders_to_config()
+
+    def add_file_item(self, path):
+        lw_item = QListWidgetItem(path.name)
+        if path.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif"):
+            pixmap = QPixmap(str(path))
+            lw_item.setIcon(QIcon(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)))
+        self.file_list.addItem(lw_item)
+
+    def upload_folder(self):
+        if not self.current_folder:
+            return
+        files = self.virtual_folders.get(self.current_folder, [])
+        if not files:
+            QMessageBox.information(self, "Empty", "No files to upload.")
             return
 
         cfg = self.config_manager.load_config()
         username = cfg.get("username")
         token = cfg.get("token")
-        headers = {"Authorization": f"token {token}"}
-
-        url = f"https://api.github.com/repos/{username}/{repo_name}/contents/"
-        resp = requests.get(url, headers=headers)
-        if resp.status_code != 200:
-            self.file_view.addItem(QListWidgetItem(f"Error fetching repo: {resp.text}"))
+        if not username or not token:
+            QMessageBox.warning(self, "Auth missing", "Enter GitHub username & token first.")
             return
 
-        for item in resp.json():
-            if item["type"] != "file":
-                continue
-            name = item["name"]
-            download_url = item["download_url"]
-            lw_item = QListWidgetItem(name)
+        repo_name = self.current_folder  # using virtual folder name as repo
+        headers = {"Authorization": f"token {token}"}
 
-            if name.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
-                try:
-                    img_bytes = requests.get(download_url).content
-                    pixmap = QPixmap()
-                    pixmap.loadFromData(img_bytes)
-                    lw_item.setIcon(QIcon(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)))
-                except:
-                    pass
-            elif name.lower().endswith(VIDEO_EXTENSIONS):
-                pass
+        # 1️⃣ Create repo if it doesn't exist
+        repo_url = f"https://api.github.com/repos/{username}/{repo_name}"
+        r = requests.get(repo_url, headers=headers)
+        if r.status_code == 404:
+            payload = {"name": repo_name, "private": False}
+            r_create = requests.post("https://api.github.com/user/repos", headers=headers, json=payload)
+            if r_create.status_code not in (201, 200):
+                QMessageBox.critical(self, "Error", f"Cannot create repo: {r_create.json()}")
+                return
 
-            self.file_view.addItem(lw_item)
+        # 2️⃣ Upload files individually
+        total_size = sum(f.stat().st_size for f in files)
+        uploaded = 0
+        self.progress.setValue(0)
+
+        for f in files:
+            content = f.read_bytes()
+            import base64
+            encoded = base64.b64encode(content).decode()
+            file_path = f.name  # root of repo
+            url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{file_path}"
+            payload = {"message": f"Add {file_path}", "content": encoded}
+            r_file = requests.put(url, headers=headers, json=payload)
+            if r_file.status_code not in (201, 200):
+                QMessageBox.warning(self, "Upload failed", f"Failed to upload {file_path}: {r_file.json()}")
+            uploaded += f.stat().st_size
+            perc = int(uploaded / total_size * 100)
+            self.progress.setValue(perc)
+            QApplication.processEvents()
+
+        self.progress.setValue(100)
+        QMessageBox.information(self, "Backup complete", f"Virtual folder '{self.current_folder}' uploaded to GitHub.")
 
 
 # ---------- Main ----------
