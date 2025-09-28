@@ -14,7 +14,7 @@ class FileItemWidget(QWidget):
     """A clickable widget that now loads its thumbnail asynchronously."""
     download_requested = pyqtSignal(Path)
 
-    def __init__(self, path: Path, parent=None):
+    def __init__(self, path: Path, is_local=False, default_pixmap: QPixmap = None, parent=None):
         super().__init__(parent)
         self.file_path = path
         self.setToolTip(f"File: {self.file_path.name}\nLocation: {self.file_path}")
@@ -22,6 +22,18 @@ class FileItemWidget(QWidget):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         # Connect that signal to our method that shows the menu
         self.customContextMenuRequested.connect(self.show_context_menu)
+
+        self.image_label = QLabel()  # Create empty label
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        if default_pixmap:
+            # If a default icon is provided, use it immediately
+            scaled = default_pixmap.scaled(96, 96, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.image_label.setPixmap(scaled)
+        elif is_local:
+            self.image_label.setText("New File")
+        else:
+            self.image_label.setText("Loading...")
 
         vbox = QVBoxLayout(self)
         vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
