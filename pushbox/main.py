@@ -344,7 +344,11 @@ class DashboardPage(QWidget):
             self.folder_list.addItem(folder)
 
     def save_folders_to_config(self):
-        self.config_manager.data["virtual_folders"] = self.virtual_folders
+        """Convert Path objects to strings before saving JSON."""
+        json_safe_folders = {}
+        for folder, file_list in self.virtual_folders.items():
+            json_safe_folders[folder] = [str(f) for f in file_list]
+        self.config_manager.data["virtual_folders"] = json_safe_folders
         self.config_manager.save_config()
 
     def on_folder_selected(self, folder_name):
