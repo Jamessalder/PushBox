@@ -260,7 +260,7 @@ class DashboardPage(QWidget):
     def on_backups_loaded(self, repo_names):
         for i in reversed(range(self.backups_grid_layout.count())):
             self.backups_grid_layout.itemAt(i).widget().setParent(None)
-        cols = 4
+        cols = 3
         for i, name in enumerate(repo_names):
             widget = BackupItemWidget(name)
             widget.clicked.connect(lambda checked, r=name: self.show_files_view(r))
