@@ -17,7 +17,6 @@ from core.settings import SettingsPage
 from pushbox.core.init.onboarding import OnboardingPage
 
 
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
