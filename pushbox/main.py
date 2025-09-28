@@ -421,7 +421,7 @@ class DashboardPage(QWidget):
 
         # Right: Files in a scrollable grid
         right_v = QVBoxLayout()
-        right_v.addWidget(QLabel("Files in Selected Folder"))
+        right_v.addWidget(QLabel("Files"))
 
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
@@ -681,7 +681,7 @@ class DashboardPage(QWidget):
             self.progress.setValue(perc)
             QApplication.processEvents()
         self.progress.setValue(100)
-        QMessageBox.information(self, "Backup Complete", f"Virtual folder '{self.current_folder}' uploaded to GitHub.")
+        QMessageBox.information(self, "Backup Complete", f"Backed Up!")
 
 
 # ---------- Main ----------
