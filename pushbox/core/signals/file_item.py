@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
 class FileItemWidget(QWidget):
     """A clickable widget that now loads its thumbnail asynchronously."""
     download_requested = pyqtSignal(Path)
+    open_requested = pyqtSignal(Path)
 
     def __init__(self, path: Path, parent=None):
         super().__init__(parent)
