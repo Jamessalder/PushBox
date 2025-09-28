@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import requests
-from PyQt6.QtCore import QThreadPool, QUrl
+from PyQt6.QtCore import QThreadPool
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QDesktopServices
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QInputDialog, QScrollArea, QGridLayout
 )
@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
 )
 
 from .signals.file_item import FileItemWidget
-from .signals.downloader import FileDownloaderWorker
 from .signals.thumb import ThumbnailWorker
 
 
@@ -23,13 +22,8 @@ class DashboardPage(QWidget):
         self.config_manager = config_manager
 
         self.thread_pool = QThreadPool()
-
         self.cache_dir = Path.home() / ".pushbox_cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-
-        self.temp_dir = Path.home() / ".pushbox_cache" / "temp_files"
-        self.temp_dir.mkdir(parents=True, exist_ok=True)
-
         self.file_widgets = {}
 
         layout = QHBoxLayout(self)
@@ -81,31 +75,52 @@ class DashboardPage(QWidget):
 
         self.load_folders_from_config()
 
-    def handle_open_request(self, file_path: Path):
-        """
-        Starts a background worker to download the file for opening.
-        """
+    def handle_download_request(self, file_path: Path):
+        """Handles the download request emitted from a FileItemWidget."""
         if not self.current_folder:
             return
 
-        QMessageBox.information(self, "Opening File",
-                                f"Preparing to open '{file_path.name}' from GitHub...\nYour app will remain responsive during the download.")
+        print(f"Download requested for {file_path.name} from repo {self.current_folder}")
 
-        temp_file_path = self.temp_dir / file_path.name
         cfg = self.config_manager.load_config()
+        username = cfg.get("username")
+        token = cfg.get("token")
 
-        # Create and start the worker
-        worker = FileDownloaderWorker(
-            username=cfg.get("username"),
-            token=cfg.get("token"),
-            repo_name=self.current_folder,
-            file_name=file_path.name,
-            temp_path=temp_file_path
-        )
+        if not username or not token:
+            QMessageBox.warning(self, "Auth Missing", "GitHub username & token are required.")
+            return
 
-        worker.signals.finished.connect(self.on_file_downloaded)
-        worker.signals.error.connect(self.on_download_failed)
-        self.thread_pool.start(worker)
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save File As...", file_path.name)
+        if not save_path:
+            return
+
+        repo_name = self.current_folder
+        file_name = file_path.name
+        headers = {"Authorization": f"token {token}"}
+        url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{file_name}"
+
+        try:
+
+            meta_response = requests.get(url, headers=headers)
+            meta_response.raise_for_status()
+            file_data = meta_response.json()
+            download_url = file_data.get("download_url")
+
+            if not download_url:
+                QMessageBox.critical(self, "Download Error", "Could not find a download URL for this file.")
+                return
+
+            content_response = requests.get(download_url, headers=headers, stream=True)
+            content_response.raise_for_status()
+
+            with open(save_path, 'wb') as f:
+                for chunk in content_response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            QMessageBox.information(self, "Success", f"Successfully downloaded '{file_name}' to:\n{save_path}")
+
+        except requests.exceptions.RequestException as e:
+            QMessageBox.critical(self, "Download Failed", f"An error occurred:\n{e}")
 
     def load_folders_from_config(self):
         raw_folders = self.config_manager.data.get("virtual_folders", {})
@@ -157,8 +172,6 @@ class DashboardPage(QWidget):
     def add_file_item(self, path: Path):
         """Creates a placeholder widget and starts a background download for the thumbnail."""
         file_widget = FileItemWidget(path)
-
-        file_widget.open_requested.connect(self.handle_open_request)
         file_widget.download_requested.connect(self.handle_download_request)
 
         self.file_widgets[path.name] = file_widget

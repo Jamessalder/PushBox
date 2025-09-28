@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
 class FileItemWidget(QWidget):
     """A clickable widget that now loads its thumbnail asynchronously."""
     download_requested = pyqtSignal(Path)
-    open_requested = pyqtSignal(Path)
 
     def __init__(self, path: Path, parent=None):
         super().__init__(parent)
@@ -43,10 +42,13 @@ class FileItemWidget(QWidget):
             self.image_label.setText("Invalid")
 
     def mousePressEvent(self, event):
-        """Handle mouse clicks by emitting signals."""
         if event.button() == Qt.MouseButton.LeftButton:
-            # Emit a signal to request opening the file from the cloud
-            self.open_requested.emit(self.file_path)
+
+            if self.file_path.exists():
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(self.file_path)))
+            else:
+                QMessageBox.information(self, "File Not Found",
+                                        "This file is not available locally. Download it again using the right-click menu.")
 
         elif event.button() == Qt.MouseButton.RightButton:
             self.show_context_menu(event.globalPos())
@@ -54,21 +56,7 @@ class FileItemWidget(QWidget):
         super().mousePressEvent(event)
 
     def show_context_menu(self, position):
-        """Create and show a right-click context menu."""
         menu = QMenu(self)
-        # Add a new option to view the file directly on GitHub.com
-        view_on_github_action = menu.addAction("View on GitHub")
-        download_action = menu.addAction("Download to...")
-
-        # Connect the actions to their respective signals
-        view_on_github_action.triggered.connect(self.open_on_github)
+        download_action = menu.addAction("Download again...")
         download_action.triggered.connect(lambda: self.download_requested.emit(self.file_path))
-
         menu.exec(position)
-
-    def open_on_github(self):
-        """A helper to emit the open_requested signal with a flag or open the browser directly."""
-        # This is a good place to add the logic to open the browser
-        # For simplicity, we'll just re-use the open_requested logic for now.
-        # A more advanced implementation could have a separate signal.
-        QMessageBox.information(self, "Coming Soon", "This will open the file in your web browser.")
