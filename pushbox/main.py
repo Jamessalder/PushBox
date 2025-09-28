@@ -403,7 +403,7 @@ class DashboardPage(QWidget):
 
         # Left: Virtual Folders
         left_v = QVBoxLayout()
-        left_v.addWidget(QLabel("Your Virtual Folders"))
+        left_v.addWidget(QLabel("Your Backups"))
 
         self.folder_list = QListWidget()
         left_v.addWidget(self.folder_list)
