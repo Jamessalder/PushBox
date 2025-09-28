@@ -1,16 +1,29 @@
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QStackedWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QFileDialog,
-    QListWidget, QListWidgetItem
+    QLabel, QLineEdit, QPushButton,
+    QListWidget, QListWidgetItem, QFrame
 )
+from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt
 import sys
 
 
+# ---------- Pages ----------
 class AuthPage(QWidget):
     def __init__(self, switch_to_dashboard):
         super().__init__()
         layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Title
+        title = QLabel("PushBox")
+        title.setFont(QFont("Montserrat", 32, QFont.Weight.Bold))
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        subtitle = QLabel("Secure GitHub Backup")
+        subtitle.setFont(QFont("Arial", 12))
+        subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.username = QLineEdit()
         self.username.setPlaceholderText("GitHub Username")
@@ -22,9 +35,12 @@ class AuthPage(QWidget):
         self.login_btn = QPushButton("Save & Continue")
         self.login_btn.clicked.connect(switch_to_dashboard)
 
-        layout.addWidget(QLabel("PushBox Login"))
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addSpacing(20)
         layout.addWidget(self.username)
         layout.addWidget(self.token)
+        layout.addSpacing(10)
         layout.addWidget(self.login_btn)
 
         self.setLayout(layout)
@@ -34,6 +50,7 @@ class BackupPage(QWidget):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.label = QLabel("Select a folder to backup")
         self.select_btn = QPushButton("Choose Folder")
@@ -68,11 +85,12 @@ class DashboardPage(QWidget):
 
         # Sidebar
         self.sidebar = QListWidget()
+        self.sidebar.setFixedWidth(180)
         self.sidebar.addItem(QListWidgetItem("Backup"))
         self.sidebar.addItem(QListWidgetItem("Restore"))
         self.sidebar.addItem(QListWidgetItem("Settings"))
 
-        # Substack for content
+        # Substack
         self.substack = QStackedWidget()
         self.backup_page = BackupPage()
         self.restore_page = RestorePage()
@@ -90,6 +108,7 @@ class DashboardPage(QWidget):
         self.setLayout(layout)
 
 
+# ---------- Main Window ----------
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -107,13 +126,62 @@ class MainWindow(QMainWindow):
 
         self.mainStack.setCurrentIndex(0)
 
+        # Apply Styles
+        self.apply_styles()
+
     def show_dashboard(self):
         self.mainStack.setCurrentIndex(1)
 
+    def apply_styles(self):
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #121212;
+                color: #eeeeee;
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 14px;
+            }
+            QLineEdit {
+                padding: 8px;
+                border: 2px solid #333;
+                border-radius: 6px;
+                background-color: #1e1e1e;
+                color: #fff;
+            }
+            QLineEdit:focus {
+                border: 2px solid #00c6ff;
+                background-color: #222;
+            }
+            QPushButton {
+                padding: 8px;
+                border-radius: 6px;
+                background-color: #00c6ff;
+                color: #121212;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #0072ff;
+                color: white;
+            }
+            QListWidget {
+                background-color: #1e1e1e;
+                border: none;
+                padding: 10px;
+            }
+            QListWidget::item {
+                padding: 10px;
+                border-radius: 4px;
+            }
+            QListWidget::item:selected {
+                background-color: #0072ff;
+                color: white;
+            }
+        """)
 
+
+# ---------- Run ----------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.resize(800, 600)
+    window.resize(900, 600)
     window.show()
     sys.exit(app.exec())
