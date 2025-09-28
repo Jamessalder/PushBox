@@ -16,6 +16,7 @@ from .signals.file_item import FileItemWidget
 # == HELPER WIDGETS
 # ==============================================================================
 
+
 class BackupItemWidget(QPushButton):
     """A custom button to visually represent a backup repository."""
 
