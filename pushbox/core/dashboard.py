@@ -328,17 +328,38 @@ class DashboardPage(QWidget):
                 self._add_file_item(local_path, is_local=True)
 
     def _add_file_item(self, path: Path, is_local: bool):
+
+        file_suffix = path.suffix.lower()
+        default_pixmap = None
+        should_fetch_thumb = False
+
+        self.generic_file_icon = QPixmap("assets/icons/file.png")
+        self.image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".bmp"}
+
         file_widget = FileItemWidget(path, is_local)
         file_widget.open_requested.connect(self.handle_open_request)
         file_widget.download_requested.connect(self.handle_download_request)
         self.file_widgets[path.name] = file_widget
         cols = 4
         pos = self.files_grid_layout.count()
+
+        if file_suffix in self.image_extensions:
+            # It's an image, so we should fetch its unique thumbnail
+            should_fetch_thumb = True
+            default_pixmap = None  # No default, show "Loading..."
+        elif file_suffix in self.icon_map:
+            # It's a known file type with a default icon
+            default_pixmap = self.icon_map[file_suffix]
+        else:
+            # It's an unknown file type, use the generic icon
+            default_pixmap = self.generic_file_icon
+
         self.files_grid_layout.addWidget(file_widget, pos // cols, pos % cols)
-        if not is_local:
-            cached_path = self.cache_dir / f"{self.current_backup_repo}_{path.name}"
-            if cached_path.exists():
-                file_widget.set_thumbnail(QPixmap(str(cached_path)))
+
+        if should_fetch_thumb and not is_local:
+            cached_thumb_path = self.cache_dir / f"{self.current_backup_repo}_{path.name}"
+            if cached_thumb_path.exists():
+                file_widget.set_thumbnail(QPixmap(str(cached_thumb_path)))
                 return
             cfg = self.config_manager.load_config()
             signals = ThumbnailSignals()
