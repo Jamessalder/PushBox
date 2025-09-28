@@ -1,12 +1,24 @@
+import base64
+import os
 import sys
 from pathlib import Path
 
-from PyQt6.QtGui import QFont, QPixmap
+import requests
+from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
+from PyQt6.QtCore import QUrl
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget,
-    QStackedWidget, QLineEdit
+    QMainWindow, QStackedWidget, QLineEdit
+)
+from PyQt6.QtWidgets import QMenu
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QPushButton, QMessageBox, QFileDialog, QProgressBar, QApplication
 )
 
+from core.config import ConfigManager
 from core.const import stylesheet
 from core.dashboard import DashboardPage
 
@@ -252,10 +264,6 @@ class SettingsPage(QWidget):
         self.setLayout(layout)
 
 
-import base64
-from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
-
-
 class WorkerSignals(QObject):
     """Defines the signals available from a running worker thread."""
     finished = pyqtSignal(str, QPixmap)
@@ -291,14 +299,6 @@ class ThumbnailWorker(QRunnable):
 
         except Exception as e:
             self.signals.error.emit(self.file_name, str(e))
-
-
-from core.config import ConfigManager
-
-from PyQt6.QtCore import pyqtSignal, QUrl
-from PyQt6.QtGui import QDesktopServices
-from PyQt6.QtWidgets import QMenu
-import os
 
 
 class FileItemWidget(QWidget):
@@ -354,14 +354,6 @@ class FileItemWidget(QWidget):
 
 
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".avi", ".mkv")
-
-import requests
-from pathlib import Path
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QMessageBox, QFileDialog, QProgressBar, QApplication
-)
 
 
 class MainWindow(QMainWindow):
