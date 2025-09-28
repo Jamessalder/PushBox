@@ -8,7 +8,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 import sys
 from core.const import stylesheet
-
+from core.config import ConfigManager
 
 # ---------- Onboarding ----------
 class OnboardingPage(QWidget):
@@ -191,7 +191,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.mainStack)
 
         self.onboarding_page = OnboardingPage(self.show_auth)
-        self.auth_page = AuthPage(self.show_dashboard)
+        self.config_manager = ConfigManager()
         self.dashboard_page = DashboardPage()
 
         self.mainStack.addWidget(self.onboarding_page)   # index 0
