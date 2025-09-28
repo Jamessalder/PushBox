@@ -5,7 +5,7 @@ from pathlib import Path
 from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget,
-    QStackedWidget, QLineEdit
+    QStackedWidget, QLineEdit, QInputDialog
 )
 
 from core.const import stylesheet
@@ -296,6 +296,9 @@ class DashboardPage(QWidget):
         self.folder_list = QListWidget()
         left_v.addWidget(self.folder_list)
 
+        self.new_folder_btn = QPushButton("+ New Virtual Folder")
+        left_v.addWidget(self.new_folder_btn)
+        self.new_folder_btn.clicked.connect(self.create_virtual_folder)
         self.add_file_btn = QPushButton("+ Add File(s)")
         self.upload_btn = QPushButton("Push Selected Folder to GitHub")
         self.upload_btn.setEnabled(False)
@@ -364,6 +367,18 @@ class DashboardPage(QWidget):
                 self.virtual_folders[self.current_folder].append(path)
                 self.add_file_item(path)
         self.upload_btn.setEnabled(True)
+        self.save_folders_to_config()
+
+    def create_virtual_folder(self):
+        folder_name, ok = QInputDialog.getText(self, "New Virtual Folder", "Enter folder name:")
+        if not ok or not folder_name.strip():
+            return
+        folder_name = folder_name.strip()
+        if folder_name in self.virtual_folders:
+            QMessageBox.warning(self, "Exists", "A folder with that name already exists.")
+            return
+        self.virtual_folders[folder_name] = []
+        self.folder_list.addItem(folder_name)
         self.save_folders_to_config()
 
     def add_file_item(self, path):
