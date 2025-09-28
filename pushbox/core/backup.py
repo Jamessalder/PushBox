@@ -67,7 +67,11 @@ class BackupPage(QWidget):
             self.folder_list.addItem(folder)
 
     def save_folders_to_config(self):
-        self.config_manager.data["virtual_folders"] = self.virtual_folders
+        # Convert Path objects to strings before saving
+        serialized = {}
+        for folder, files in self.virtual_folders.items():
+            serialized[folder] = [str(f) for f in files]
+        self.config_manager.data["virtual_folders"] = serialized
         self.config_manager.save_config()
 
     def create_virtual_folder(self):
