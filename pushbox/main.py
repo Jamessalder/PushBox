@@ -277,105 +277,75 @@ class SettingsPage(QWidget):
 
 
 # ---------- Dashboard ----------
+import requests
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem
+from PyQt6.QtGui import QPixmap, QIcon
+from PyQt6.QtCore import Qt
+from core.config import ConfigManager
+
+VIDEO_EXTENSIONS = (".mp4", ".mov", ".avi", ".mkv")
+
 class DashboardPage(QWidget):
-    def __init__(self, config_manager):
+    def __init__(self, config_manager: ConfigManager):
         super().__init__()
         self.config_manager = config_manager
+        layout = QVBoxLayout(self)
 
-        layout = QHBoxLayout(self)
+        layout.addWidget(QLabel("Your Backup Repos"))
 
-        # Left: repos list
-        left_v = QVBoxLayout()
-        left_v.addWidget(QLabel("Your Backup Folders (Repos)"))
         self.repo_list = QListWidget()
-        left_v.addWidget(self.repo_list)
+        layout.addWidget(self.repo_list)
 
-        self.new_folder_btn = QPushButton("+ New Backup Folder")
-        left_v.addWidget(self.new_folder_btn)
-
-        layout.addLayout(left_v, stretch=1)
-
-        # Right: detail / files
-        right_v = QVBoxLayout()
-        right_v.addWidget(QLabel("Files in Selected Backup"))
+        layout.addWidget(QLabel("Files in Selected Repo"))
         self.file_view = QListWidget()
-        right_v.addWidget(self.file_view)
-
-        layout.addLayout(right_v, stretch=2)
+        layout.addWidget(self.file_view)
 
         self.setLayout(layout)
 
-        # Hookups
-        self.new_folder_btn.clicked.connect(self.create_backup_repo)
-        self.repo_list.currentTextChanged.connect(self.on_repo_selected)
+        self.repo_list.currentTextChanged.connect(self.load_repo_files)
+        self.load_repos()
 
-        # load repos from config (local cache) - in real app fetch from GitHub API
-        repos = self.config_manager.data.get("repos", [])
-        for r in repos:
-            self.repo_list.addItem(QListWidgetItem(r))
-
-    def create_backup_repo(self):
-        # We ask user to select a folder to backup (must be <= 1GB)
-        folder = QFileDialog.getExistingDirectory(self, "Select folder to backup")
-        if not folder:
-            return
-        folder_path = Path(folder)
-        size = BackupPage.folder_size_bytes(folder_path)
-        if size > 1_000_000_000:
-            QMessageBox.warning(self, "Folder too large",
-                                "Selected folder exceeds 1GB limit. Please choose a smaller folder.")
-            return
-
-        # Ask for a repo name (default derived from folder)
-        default_repo = f"backup-{folder_path.name}"
-        repo_name, ok = QInputDialog.getText(self, "Repo name", "Name for GitHub repo:", text=default_repo)
-        if not ok or not repo_name.strip():
-            return
-        repo_name = repo_name.strip()
-
-        # TODO: Create repo on GitHub using token and username; initialize and push.
-        # For now: add to UI list and save in config
-        if repo_name not in self.config_manager.data.get("repos", []):
-            self.repo_list.addItem(repo_name)
-            repos = self.config_manager.data.get("repos", [])
-            repos.append(repo_name)
-            self.config_manager.data["repos"] = repos
-            self.config_manager.save_config()
-
-            QMessageBox.information(self, "Queued", f"Folder will be backed up as repo: {repo_name}\n\n(Implement actual push logic in TODO.)")
-        else:
-            QMessageBox.information(self, "Exists", "A repo with that name already exists in your local list.")
-
-    def on_repo_selected(self, repo_name):
-        if not repo_name:
-            return
-        self.load_repo_files(repo_name)
+    def load_repos(self):
+        cfg = self.config_manager.load_config()
+        repos = cfg.get("repos", [])
+        self.repo_list.clear()
+        self.repo_list.addItems(repos)
 
     def load_repo_files(self, repo_name):
         self.file_view.clear()
+        if not repo_name:
+            return
+
         cfg = self.config_manager.load_config()
-        username = cfg["username"];
-        token = cfg["token"]
+        username = cfg.get("username")
+        token = cfg.get("token")
+        headers = {"Authorization": f"token {token}"}
 
         url = f"https://api.github.com/repos/{username}/{repo_name}/contents/"
-        headers = {"Authorization": f"token {token}"}
         resp = requests.get(url, headers=headers)
         if resp.status_code != 200:
+            self.file_view.addItem(QListWidgetItem(f"Error fetching repo: {resp.text}"))
             return
 
         for item in resp.json():
-            if item["type"] == "file":
-                name = item["name"]
-                download_url = item["download_url"]
+            if item["type"] != "file":
+                continue
+            name = item["name"]
+            download_url = item["download_url"]
+            lw_item = QListWidgetItem(name)
 
-                lw_item = QListWidgetItem(name)
-                # if image → show thumbnail
-                if name.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
+            if name.lower().endswith((".png", ".jpg", ".jpeg", ".gif")):
+                try:
                     img_bytes = requests.get(download_url).content
                     pixmap = QPixmap()
                     pixmap.loadFromData(img_bytes)
                     lw_item.setIcon(QIcon(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)))
-                self.file_view.addItem(lw_item)
+                except:
+                    pass
+            elif name.lower().endswith(VIDEO_EXTENSIONS):
+                pass
+
+            self.file_view.addItem(lw_item)
 
 
 # ---------- Main ----------
