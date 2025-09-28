@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QMessageBox, QFileDialog, QProgressBar, QApplication,
     QScrollArea, QGridLayout, QInputDialog, QMenu
 )
-
+from .signals.file_item import FileItemWidget
 
 # ==============================================================================
 # == HELPER WIDGETS
@@ -39,49 +39,6 @@ class BackupItemWidget(QPushButton):
                 background-color: #2a2a3b;
             }
         """)
-
-
-class FileItemWidget(QWidget):
-    """A custom widget to represent a single file in the grid."""
-    open_requested = pyqtSignal(Path)
-    download_requested = pyqtSignal(Path)
-
-    def __init__(self, path: Path, is_local=False, parent=None):
-        super().__init__(parent)
-        self.file_path = path
-        self.setToolTip(f"File: {self.file_path.name}")
-        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.show_context_menu)
-        vbox = QVBoxLayout(self)
-        vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.image_label = QLabel("Loading...")
-        if is_local: self.image_label.setText("New File")
-        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        vbox.addWidget(self.image_label)
-        name_label = QLabel(self.file_path.name)
-        name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        name_label.setWordWrap(True)
-        vbox.addWidget(name_label)
-        self.setMinimumHeight(140)
-
-    def set_thumbnail(self, pixmap: QPixmap):
-        if not pixmap.isNull():
-            scaled = pixmap.scaled(96, 96, Qt.AspectRatioMode.KeepAspectRatio,
-                                   Qt.TransformationMode.SmoothTransformation)
-            self.image_label.setPixmap(scaled)
-        else:
-            self.image_label.setText("Preview\nUnavailable")
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.open_requested.emit(self.file_path)
-        super().mousePressEvent(event)
-
-    def show_context_menu(self, position):
-        menu = QMenu(self)
-        download_action = menu.addAction("Download to...")
-        download_action.triggered.connect(lambda: self.download_requested.emit(self.file_path))
-        menu.exec(self.mapToGlobal(position))
 
 
 # ==============================================================================
@@ -335,6 +292,7 @@ class DashboardPage(QWidget):
 
         self.generic_file_icon = QPixmap("assets/icons/file.png")
         self.image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".bmp"}
+        self.doc_ext = {".pdf"}
 
         file_widget = FileItemWidget(path, is_local)
         file_widget.open_requested.connect(self.handle_open_request)
@@ -343,7 +301,7 @@ class DashboardPage(QWidget):
         cols = 4
         pos = self.files_grid_layout.count()
 
-        if file_suffix in self.image_extensions:
+        if file_suffix in self.image_extensions or self.doc_ext:
             # It's an image, so we should fetch its unique thumbnail
             should_fetch_thumb = True
             default_pixmap = None  # No default, show "Loading..."
