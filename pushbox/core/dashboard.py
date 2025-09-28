@@ -219,8 +219,8 @@ class DashboardPage(QWidget):
 
         self.icon_map = {
             ".py": QPixmap("assets/icons/python.png"),
-            ".md": QPixmap("pushbox/assets/icons/markdown.png"),
-            ".txt": QPixmap("pushbox/assets/icons/text.png"),
+            ".md": QPixmap("assets/icons/markdown.png"),
+            ".txt": QPixmap("assets/icons/text.png"),
         }
         self.generic_file_icon = QPixmap("pushbox/assets/icons/file.png")
         self.image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".bmp"}
