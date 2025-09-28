@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QStackedWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton,
-    QListWidget, QListWidgetItem
+    QListWidget, QListWidgetItem, QInputDialog, QProgressBar, QMessageBox
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
@@ -160,30 +160,62 @@ class SettingsPage(QWidget):
 
 # ---------- Dashboard ----------
 class DashboardPage(QWidget):
-    def __init__(self):
+    def __init__(self, config_manager):
         super().__init__()
-        layout = QHBoxLayout()
+        self.config_manager = config_manager
 
-        self.sidebar = QListWidget()
-        self.sidebar.setFixedWidth(180)
-        self.sidebar.addItem(QListWidgetItem("Backup"))
-        self.sidebar.addItem(QListWidgetItem("Restore"))
-        self.sidebar.addItem(QListWidgetItem("Settings"))
+        layout = QVBoxLayout(self)
+        self.repo_list = QListWidget()
+        layout.addWidget(QLabel("Your Backup Folders"))
+        layout.addWidget(self.repo_list)
 
-        self.substack = QStackedWidget()
-        self.backup_page = BackupPage()
-        self.restore_page = RestorePage()
-        self.settings_page = SettingsPage()
+        btn_layout = QHBoxLayout()
+        self.new_folder_btn = QPushButton("+ New Backup Folder")
+        btn_layout.addWidget(self.new_folder_btn)
+        layout.addLayout(btn_layout)
 
-        self.substack.addWidget(self.backup_page)
-        self.substack.addWidget(self.restore_page)
-        self.substack.addWidget(self.settings_page)
+        self.progress = QProgressBar()
+        layout.addWidget(self.progress)
 
-        self.sidebar.currentRowChanged.connect(self.substack.setCurrentIndex)
+        self.file_view = QListWidget()
+        layout.addWidget(QLabel("Files in Selected Backup"))
+        layout.addWidget(self.file_view)
 
-        layout.addWidget(self.sidebar)
-        layout.addWidget(self.substack, stretch=1)
-        self.setLayout(layout)
+        # Hook
+        self.new_folder_btn.clicked.connect(self.create_backup_repo)
+
+    def create_backup_repo(self):
+        folder_name, ok = QInputDialog.getText(self, "New Backup", "Folder/Repo name:")
+        if not ok or not folder_name:
+            return
+
+        # Local folder
+        os.makedirs(folder_name, exist_ok=True)
+
+        # TODO: GitHub API → create repo
+        # For now, just simulate
+        self.repo_list.addItem(folder_name)
+
+    def upload_folder(self, folder_path, repo_name):
+        total_size = sum(os.path.getsize(os.path.join(dp, f))
+                         for dp, dn, filenames in os.walk(folder_path)
+                         for f in filenames)
+
+        if total_size > 1_000_000_000:  # 1GB
+            QMessageBox.warning(self, "Error", "Folder exceeds 1GB limit.")
+            return
+
+        uploaded = 0
+        for dp, dn, filenames in os.walk(folder_path):
+            for f in filenames:
+                path = os.path.join(dp, f)
+                size = os.path.getsize(path)
+
+                # TODO: push via GitHub API
+                uploaded += size
+                progress_val = int((uploaded / total_size) * 100)
+                self.progress.setValue(progress_val)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
