@@ -10,6 +10,7 @@ import sys
 from core.const import stylesheet
 from core.config import ConfigManager
 
+
 # ---------- Onboarding ----------
 class OnboardingPage(QWidget):
     def __init__(self, switch_to_auth):
@@ -21,7 +22,8 @@ class OnboardingPage(QWidget):
         # Define onboarding content (title, subtitle)
         data = [
             ("Welcome to PushBox 🚀", "Your secure GitHub-powered cloud backup tool."),
-            ("Why GitHub?", "GitHub gives you free, fast, and reliable cloud storage using repositories, and we can use that storage as our personal storage backup."),
+            ("Why GitHub?",
+             "GitHub gives you free, fast, and reliable cloud storage using repositories, and we can use that storage as our personal storage backup."),
             ("How it Works ⚙️", "PushBox creates repos, pushes your folders, and restores when needed."),
             ("You're Ready!", "Let's get started with secure backups.")
         ]
@@ -40,7 +42,7 @@ class OnboardingPage(QWidget):
             label_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label_sub.setWordWrap(True)
 
-            btn = QPushButton("Next" if i < len(data)-1 else "Get Started")
+            btn = QPushButton("Next" if i < len(data) - 1 else "Get Started")
             btn.setFixedWidth(150)
             btn.clicked.connect(
                 (lambda _, idx=i: self.next_page(idx, switch_to_auth))
@@ -62,8 +64,8 @@ class OnboardingPage(QWidget):
         self.setLayout(vbox)
 
     def next_page(self, index, switch_to_auth):
-        if index < len(self.pages)-1:
-            self.stack.setCurrentIndex(index+1)
+        if index < len(self.pages) - 1:
+            self.stack.setCurrentIndex(index + 1)
         else:
             switch_to_auth()
 
@@ -194,9 +196,9 @@ class MainWindow(QMainWindow):
         self.config_manager = ConfigManager()
         self.dashboard_page = DashboardPage()
 
-        self.mainStack.addWidget(self.onboarding_page)   # index 0
-        self.mainStack.addWidget(self.auth_page)         # index 1
-        self.mainStack.addWidget(self.dashboard_page)    # index 2
+        self.mainStack.addWidget(self.onboarding_page)  # index 0
+        self.mainStack.addWidget(self.auth_page)  # index 1
+        self.mainStack.addWidget(self.dashboard_page)  # index 2
 
         self.mainStack.setCurrentIndex(0)
 
