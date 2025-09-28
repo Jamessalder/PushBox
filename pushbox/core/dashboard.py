@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import requests
-from PyQt6.QtCore import QThreadPool
+from PyQt6.QtCore import QThreadPool, QUrl
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QDesktopServices
 from PyQt6.QtWidgets import (
     QInputDialog, QScrollArea, QGridLayout
 )
@@ -80,10 +80,49 @@ class DashboardPage(QWidget):
 
         self.load_folders_from_config()
 
-    def handle_download_request(self, file_path: Path):
-        """Handles the download request emitted from a FileItemWidget."""
+    def handle_open_request(self, file_path: Path):
+        """
+        Handles the open request by downloading the file to a temporary
+        location and then opening it with the default application.
+        """
         if not self.current_folder:
             return
+
+        QMessageBox.information(self, "Opening File",
+                                f"Now preparing to open '{file_path.name}' from GitHub...\nThe file will be downloaded to a temporary location first.")
+
+        # Define the temporary path for the file
+        temp_file_path = self.temp_dir / file_path.name
+
+        # --- Re-use download logic ---
+        cfg = self.config_manager.load_config()
+        username = cfg.get("username")
+        token = cfg.get("token")
+        repo_name = self.current_folder
+        headers = {"Authorization": f"token {token}"}
+        url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{file_path.name}"
+
+        try:
+            meta_response = requests.get(url, headers=headers)
+            meta_response.raise_for_status()
+            download_url = meta_response.json().get("download_url")
+
+            if not download_url:
+                QMessageBox.critical(self, "Error", "Could not find a download URL for this file.")
+                return
+
+            content_response = requests.get(download_url, headers=headers, stream=True)
+            content_response.raise_for_status()
+
+            with open(temp_file_path, 'wb') as f:
+                for chunk in content_response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            # --- File is downloaded, now open it ---
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(temp_file_path)))
+
+        except requests.exceptions.RequestException as e:
+            QMessageBox.critical(self, "Failed to Open", f"An error occurred while downloading the file:\n{e}")
 
         print(f"Download requested for {file_path.name} from repo {self.current_folder}")
 
@@ -177,6 +216,8 @@ class DashboardPage(QWidget):
     def add_file_item(self, path: Path):
         """Creates a placeholder widget and starts a background download for the thumbnail."""
         file_widget = FileItemWidget(path)
+
+        file_widget.open_requested.connect(self.handle_open_request)
         file_widget.download_requested.connect(self.handle_download_request)
 
         self.file_widgets[path.name] = file_widget
