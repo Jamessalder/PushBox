@@ -199,6 +199,14 @@ class MainWindow(QMainWindow):
         # ConfigManager first
         self.config_manager = ConfigManager()
 
+        if self.config_manager.data.get("onboarding_done"):
+            if self.config_manager.data.get("token"):
+                self.show_dashboard()
+            else:
+                self.show_auth()
+        else:
+            self.mainStack.setCurrentIndex(0)
+
         # Pages
         self.onboarding_page = OnboardingPage(self.show_auth)
         self.auth_page = AuthPage(self.show_dashboard, self.config_manager)
