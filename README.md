@@ -64,14 +64,6 @@ Follow these instructions to get a local copy up and running.
     ```sh
     pip install -r requirements.txt
     ```
-    *(Note: You will need to create a `requirements.txt` file containing `PyQt6` and `requests`)*
-
-    **requirements.txt:**
-    ```
-    PyQt6
-    requests
-    ```
-
 ---
 
 ## Usage
