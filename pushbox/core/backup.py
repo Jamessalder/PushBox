@@ -12,6 +12,7 @@ APP_DIR = Path(os.getenv("LOCALAPPDATA")) / "PushBox"
 STAGING_DIR = APP_DIR / "staging"
 STAGING_DIR.mkdir(parents=True, exist_ok=True)
 
+
 class BackupPage(QWidget):
     def __init__(self, config_manager: ConfigManager):
         super().__init__()
@@ -110,7 +111,7 @@ class BackupPage(QWidget):
             r = requests.put(api_url, headers=headers, json={"message": "PushBox backup", "content": content})
             if r.status_code not in (200, 201):
                 QMessageBox.warning(self, "Upload Failed", f"Failed to upload {f.name}")
-            self.progress.setValue(int(i/total*100))
+            self.progress.setValue(int(i / total * 100))
             QApplication.processEvents()
         self.progress.setValue(100)
         QMessageBox.information(self, "Backup Complete", f"Folder uploaded as repo: {repo_name}")
