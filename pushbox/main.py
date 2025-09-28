@@ -1,11 +1,13 @@
 import json
 import os
+from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget,
     QStackedWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QPushButton,
-    QListWidget, QListWidgetItem, QInputDialog, QProgressBar, QMessageBox
+    QListWidget, QListWidgetItem, QInputDialog, QProgressBar, QMessageBox,
+    QFileDialog
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
@@ -16,9 +18,9 @@ from core.config import ConfigManager
 
 # ---------- Onboarding ----------
 class OnboardingPage(QWidget):
-    def __init__(self, switch_to_auth):
+    def __init__(self, switch_to_auth, config_manager):
         super().__init__()
-
+        self.config_manager = config_manager
         self.stack = QStackedWidget()
         self.pages = []
 
@@ -37,7 +39,7 @@ class OnboardingPage(QWidget):
             layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             label_title = QLabel(title)
-            label_title.setFont(QFont("Montserrat", 35, QFont.Weight.Bold))
+            label_title.setFont(QFont("Montserrat", 28, QFont.Weight.Bold))
             label_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
             label_sub = QLabel(subtitle)
@@ -47,9 +49,12 @@ class OnboardingPage(QWidget):
 
             btn = QPushButton("Next" if i < len(data) - 1 else "Get Started")
             btn.setFixedWidth(150)
-            btn.clicked.connect(
-                (lambda _, idx=i: self.next_page(idx, switch_to_auth))
-            )
+
+            # capture i in lambda properly
+            def make_handler(idx):
+                return lambda: self.next_page(idx, switch_to_auth)
+
+            btn.clicked.connect(make_handler(i))
 
             layout.addStretch()
             layout.addWidget(label_title)
@@ -67,9 +72,13 @@ class OnboardingPage(QWidget):
         self.setLayout(vbox)
 
     def next_page(self, index, switch_to_auth):
+        # if not last page, show next
         if index < len(self.pages) - 1:
             self.stack.setCurrentIndex(index + 1)
         else:
+            # mark onboarding done in config and save
+            self.config_manager.data["onboarding_done"] = True
+            self.config_manager.save_config()
             switch_to_auth()
 
 
@@ -82,7 +91,7 @@ class AuthPage(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         title = QLabel("PushBox")
-        title.setFont(QFont("Montserrat", 60, QFont.Weight.Bold))
+        title.setFont(QFont("Montserrat", 48, QFont.Weight.Bold))
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         subtitle = QLabel("Secure GitHub Backup")
@@ -117,7 +126,9 @@ class AuthPage(QWidget):
     def save_and_continue(self, switch_to_dashboard):
         data = {
             "username": self.username.text(),
-            "token": self.token.text()
+            "token": self.token.text(),
+            # preserve onboarding flag if previously set
+            "onboarding_done": self.config_manager.data.get("onboarding_done", False)
         }
         self.config_manager.save_config(data)
         switch_to_dashboard()
@@ -125,19 +136,123 @@ class AuthPage(QWidget):
 
 # ---------- Backup ----------
 class BackupPage(QWidget):
-    def __init__(self):
+    def __init__(self, config_manager):
         super().__init__()
+        self.config_manager = config_manager
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         self.label = QLabel("Select a folder to backup")
-        self.select_btn = QPushButton("Choose Folder")
+        self.select_btn = QPushButton("Choose Folder to Backup")
         self.backup_btn = QPushButton("Backup Now")
+        self.backup_btn.setEnabled(False)  # enabled after folder chosen
+
+        self.selected_folder_label = QLabel("No folder selected")
+        self.selected_folder_label.setWordWrap(True)
 
         layout.addWidget(self.label)
+        layout.addWidget(self.selected_folder_label)
         layout.addWidget(self.select_btn)
         layout.addWidget(self.backup_btn)
+
+        self.progress = QProgressBar()
+        self.progress.setValue(0)
+        layout.addWidget(self.progress)
+
         self.setLayout(layout)
+
+        # internal state
+        self.current_folder = None
+        self.current_repo_name = None
+
+        # hooks
+        self.select_btn.clicked.connect(self.choose_folder_dialog)
+        self.backup_btn.clicked.connect(self.start_backup)
+
+    def choose_folder_dialog(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select folder to backup")
+        if not folder:
+            return
+        self.current_folder = Path(folder)
+        size = self.folder_size_bytes(self.current_folder)
+        if size > 1_000_000_000:
+            QMessageBox.warning(self, "Folder too large",
+                                "Selected folder exceeds 1GB limit. Please choose a smaller folder.")
+            self.current_folder = None
+            self.selected_folder_label.setText("No folder selected")
+            self.backup_btn.setEnabled(False)
+            return
+
+        # propose repo name derived from folder name and timestamp
+        base_name = self.current_folder.name
+        repo_name = f"backup-{base_name}"
+        self.current_repo_name = repo_name
+        self.selected_folder_label.setText(f"Selected: {self.current_folder}\nRepo name: {repo_name}\nSize: {self.human_readable_size(size)}")
+        self.backup_btn.setEnabled(True)
+
+    def start_backup(self):
+        if not self.current_folder or not self.current_repo_name:
+            QMessageBox.information(self, "No folder", "Choose a folder before backup.")
+            return
+
+        # TODO: create repo on GitHub using token and username from config_manager
+        # TODO: initialize local temporary repo or use git to add/commit files, then push to created repo
+        # For now simulate upload progress by iterating files and updating progress bar
+
+        total_size = self.folder_size_bytes(self.current_folder)
+        if total_size == 0:
+            QMessageBox.information(self, "Empty", "Selected folder is empty.")
+            return
+
+        uploaded = 0
+        self.progress.setValue(0)
+        # Walk files in sorted order to make deterministic progress
+        all_files = []
+        for dp, dn, filenames in os.walk(self.current_folder):
+            for f in filenames:
+                all_files.append(Path(dp) / f)
+        all_files.sort()
+
+        # simulate uploading each file (replace with actual push logic)
+        for p in all_files:
+            try:
+                s = p.stat().st_size
+            except Exception:
+                s = 0
+            uploaded += s
+            perc = int((uploaded / total_size) * 100)
+            self.progress.setValue(perc)
+            QApplication.processEvents()  # keep UI responsive
+
+        self.progress.setValue(100)
+        QMessageBox.information(self, "Backup complete", f"Folder backed up as repo: {self.current_repo_name}")
+
+        # Add to repo list stored in config (local cache). Real app should verify with GitHub
+        repos = self.config_manager.data.get("repos", [])
+        if self.current_repo_name not in repos:
+            repos.append(self.current_repo_name)
+            self.config_manager.data["repos"] = repos
+            self.config_manager.save_config()
+
+
+    @staticmethod
+    def folder_size_bytes(path: Path) -> int:
+        total = 0
+        for dp, dn, filenames in os.walk(path):
+            for f in filenames:
+                try:
+                    total += os.path.getsize(os.path.join(dp, f))
+                except Exception:
+                    pass
+        return total
+
+    @staticmethod
+    def human_readable_size(n: int) -> str:
+        for unit in ["B", "KB", "MB", "GB", "TB"]:
+            if n < 1024:
+                return f"{n:.2f}{unit}"
+            n /= 1024
+        return f"{n:.2f}PB"
 
 
 # ---------- Restore ----------
@@ -151,8 +266,9 @@ class RestorePage(QWidget):
 
 # ---------- Settings ----------
 class SettingsPage(QWidget):
-    def __init__(self):
+    def __init__(self, config_manager):
         super().__init__()
+        self.config_manager = config_manager
         layout = QVBoxLayout()
         layout.addWidget(QLabel("Settings (theme, token storage, etc.)"))
         self.setLayout(layout)
@@ -164,91 +280,121 @@ class DashboardPage(QWidget):
         super().__init__()
         self.config_manager = config_manager
 
-        layout = QVBoxLayout(self)
+        layout = QHBoxLayout(self)
+
+        # Left: repos list
+        left_v = QVBoxLayout()
+        left_v.addWidget(QLabel("Your Backup Folders (Repos)"))
         self.repo_list = QListWidget()
-        layout.addWidget(QLabel("Your Backup Folders"))
-        layout.addWidget(self.repo_list)
+        left_v.addWidget(self.repo_list)
 
-        btn_layout = QHBoxLayout()
         self.new_folder_btn = QPushButton("+ New Backup Folder")
-        btn_layout.addWidget(self.new_folder_btn)
-        layout.addLayout(btn_layout)
+        left_v.addWidget(self.new_folder_btn)
 
-        self.progress = QProgressBar()
-        layout.addWidget(self.progress)
+        layout.addLayout(left_v, stretch=1)
 
+        # Right: detail / files
+        right_v = QVBoxLayout()
+        right_v.addWidget(QLabel("Files in Selected Backup"))
         self.file_view = QListWidget()
-        layout.addWidget(QLabel("Files in Selected Backup"))
-        layout.addWidget(self.file_view)
+        right_v.addWidget(self.file_view)
 
-        # Hook
+        layout.addLayout(right_v, stretch=2)
+
+        self.setLayout(layout)
+
+        # Hookups
         self.new_folder_btn.clicked.connect(self.create_backup_repo)
+        self.repo_list.currentTextChanged.connect(self.on_repo_selected)
+
+        # load repos from config (local cache) - in real app fetch from GitHub API
+        repos = self.config_manager.data.get("repos", [])
+        for r in repos:
+            self.repo_list.addItem(QListWidgetItem(r))
 
     def create_backup_repo(self):
-        folder_name, ok = QInputDialog.getText(self, "New Backup", "Folder/Repo name:")
-        if not ok or not folder_name:
+        # We ask user to select a folder to backup (must be <= 1GB)
+        folder = QFileDialog.getExistingDirectory(self, "Select folder to backup")
+        if not folder:
+            return
+        folder_path = Path(folder)
+        size = BackupPage.folder_size_bytes(folder_path)
+        if size > 1_000_000_000:
+            QMessageBox.warning(self, "Folder too large",
+                                "Selected folder exceeds 1GB limit. Please choose a smaller folder.")
             return
 
-        # Local folder
-        os.makedirs(folder_name, exist_ok=True)
-
-        # TODO: GitHub API → create repo
-        # For now, just simulate
-        self.repo_list.addItem(folder_name)
-
-    def upload_folder(self, folder_path, repo_name):
-        total_size = sum(os.path.getsize(os.path.join(dp, f))
-                         for dp, dn, filenames in os.walk(folder_path)
-                         for f in filenames)
-
-        if total_size > 1_000_000_000:  # 1GB
-            QMessageBox.warning(self, "Error", "Folder exceeds 1GB limit.")
+        # Ask for a repo name (default derived from folder)
+        default_repo = f"backup-{folder_path.name}"
+        repo_name, ok = QInputDialog.getText(self, "Repo name", "Name for GitHub repo:", text=default_repo)
+        if not ok or not repo_name.strip():
             return
+        repo_name = repo_name.strip()
 
-        uploaded = 0
-        for dp, dn, filenames in os.walk(folder_path):
-            for f in filenames:
-                path = os.path.join(dp, f)
-                size = os.path.getsize(path)
+        # TODO: Create repo on GitHub using token and username; initialize and push.
+        # For now: add to UI list and save in config
+        if repo_name not in self.config_manager.data.get("repos", []):
+            self.repo_list.addItem(repo_name)
+            repos = self.config_manager.data.get("repos", [])
+            repos.append(repo_name)
+            self.config_manager.data["repos"] = repos
+            self.config_manager.save_config()
 
-                # TODO: push via GitHub API
-                uploaded += size
-                progress_val = int((uploaded / total_size) * 100)
-                self.progress.setValue(progress_val)
+            QMessageBox.information(self, "Queued", f"Folder will be backed up as repo: {repo_name}\n\n(Implement actual push logic in TODO.)")
+        else:
+            QMessageBox.information(self, "Exists", "A repo with that name already exists in your local list.")
+
+    def on_repo_selected(self, repo_name):
+        if not repo_name:
+            return
+        self.load_repo_files(repo_name)
+
+    def load_repo_files(self, repo_name):
+        self.file_view.clear()
+        # TODO: fetch remote file tree from GitHub API and populate file_view
+        # For now show mock entries
+        mock_files = ["README.md", "notes.txt", "image.png"]
+        self.file_view.addItems(mock_files)
 
 
+# ---------- Main ----------
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PushBox")
 
+        # Config manager first
+        self.config_manager = ConfigManager()
+
+        # Create pages
+        self.onboarding_page = OnboardingPage(self.show_auth, self.config_manager)
+        self.auth_page = AuthPage(self.show_dashboard, self.config_manager)
+        self.backup_page = BackupPage(self.config_manager)
+        self.restore_page = RestorePage()
+        self.settings_page = SettingsPage(self.config_manager)
+        self.dashboard_page = DashboardPage(self.config_manager)
+
+        # Main stack
         self.mainStack = QStackedWidget()
         self.setCentralWidget(self.mainStack)
 
-        # ConfigManager first
-        self.config_manager = ConfigManager()
-
-        if self.config_manager.data.get("onboarding_done"):
-            if self.config_manager.data.get("token"):
-                self.show_dashboard()
-            else:
-                self.show_auth()
-        else:
-            self.mainStack.setCurrentIndex(0)
-
-        self.config_manager.data["onboarding_done"] = True
-        self.config_manager.save_config()
-
-        self.onboarding_page = OnboardingPage(self.show_auth)
-        self.auth_page = AuthPage(self.show_dashboard, self.config_manager)
-        self.dashboard_page = DashboardPage()
-
-        # Add to stack
+        # Add pages
         self.mainStack.addWidget(self.onboarding_page)   # index 0
         self.mainStack.addWidget(self.auth_page)         # index 1
+        # you could add a consolidated dashboard stack, for simplicity add a Dashboard as index 2:
         self.mainStack.addWidget(self.dashboard_page)    # index 2
 
-        self.mainStack.setCurrentIndex(0)
+        # Decide which page to show
+        cfg = self.config_manager.load_config()
+        onboarding_done = cfg.get("onboarding_done", False)
+        token = cfg.get("token", "")
+
+        if not onboarding_done:
+            self.mainStack.setCurrentIndex(0)  # show onboarding
+        elif token:
+            self.mainStack.setCurrentIndex(2)  # skip auth, go to dashboard
+        else:
+            self.mainStack.setCurrentIndex(1)  # show auth
 
         self.apply_styles()
 
@@ -262,10 +408,9 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(stylesheet)
 
 
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.resize(900, 600)
+    window.resize(1000, 640)
     window.show()
     sys.exit(app.exec())
