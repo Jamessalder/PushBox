@@ -184,6 +184,7 @@ class DashboardPage(QWidget):
 
 
 # ---------- Main ----------
+# ---------- Main ----------
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -192,13 +193,18 @@ class MainWindow(QMainWindow):
         self.mainStack = QStackedWidget()
         self.setCentralWidget(self.mainStack)
 
-        self.onboarding_page = OnboardingPage(self.show_auth)
+        # ConfigManager first
         self.config_manager = ConfigManager()
+
+        # Pages
+        self.onboarding_page = OnboardingPage(self.show_auth)
+        self.auth_page = AuthPage(self.show_dashboard, self.config_manager)
         self.dashboard_page = DashboardPage()
 
-        self.mainStack.addWidget(self.onboarding_page)  # index 0
-        self.mainStack.addWidget(self.auth_page)  # index 1
-        self.mainStack.addWidget(self.dashboard_page)  # index 2
+        # Add to stack
+        self.mainStack.addWidget(self.onboarding_page)   # index 0
+        self.mainStack.addWidget(self.auth_page)         # index 1
+        self.mainStack.addWidget(self.dashboard_page)    # index 2
 
         self.mainStack.setCurrentIndex(0)
 
@@ -212,6 +218,7 @@ class MainWindow(QMainWindow):
 
     def apply_styles(self):
         self.setStyleSheet(stylesheet)
+
 
 
 if __name__ == "__main__":
