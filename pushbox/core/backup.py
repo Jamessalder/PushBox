@@ -110,9 +110,15 @@ class BackupPage(QWidget):
 
     def add_file_item(self, path):
         lw_item = QListWidgetItem(path.name)
-        if path.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif"):
-            pixmap = QPixmap(str(path))
-            lw_item.setIcon(QIcon(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)))
+        try:
+            if path.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif"):
+                pixmap = QPixmap(str(path))
+                if not pixmap.isNull():
+                    lw_item.setIcon(QIcon(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)))
+            else:
+                lw_item.setIcon(self.style().standardIcon(QPushButton().style().SP_FileIcon))
+        except Exception:
+            lw_item.setIcon(self.style().standardIcon(QPushButton().style().SP_FileIcon))
         self.file_list.addItem(lw_item)
 
     def upload_folder(self):
