@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 
+
 class ConfigManager:
     def __init__(self, config_file="config.json"):
         # Path under LocalAppData
