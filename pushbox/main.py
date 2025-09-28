@@ -269,7 +269,7 @@ class SettingsPage(QWidget):
 
 
 import base64
-from PyQt6.QtCore import QObject, QRunnable, pyqtSignal
+from PyQt6.QtCore import QObject, QRunnable, pyqtSignal, QThreadPool
 
 
 # This class is needed to emit signals from the QRunnable worker
@@ -393,6 +393,11 @@ class DashboardPage(QWidget):
     def __init__(self, config_manager):
         super().__init__()
         self.config_manager = config_manager
+
+        self.thread_pool = QThreadPool()
+        self.cache_dir = Path.home() / ".pushbox_cache"
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.file_widgets = {}
 
         layout = QHBoxLayout(self)
 
@@ -530,10 +535,12 @@ class DashboardPage(QWidget):
 
     def on_folder_selected(self, folder_name):
         self.current_folder = folder_name
+        self.file_widgets.clear()  # Clear the widget map
+
+        # Clear layout
         for i in reversed(range(self.grid_layout.count())):
-            widget_to_remove = self.grid_layout.itemAt(i).widget()
-            if widget_to_remove:
-                widget_to_remove.setParent(None)
+            self.grid_layout.itemAt(i).widget().setParent(None)
+
         if folder_name:
             self.add_file_btn.setEnabled(True)
             self.upload_btn.setEnabled(len(self.virtual_folders[folder_name]) > 0)
@@ -554,6 +561,50 @@ class DashboardPage(QWidget):
                 self.add_file_item(path)
         self.upload_btn.setEnabled(True)
         self.save_folders_to_config()
+
+    def add_file_item(self, path: Path):
+        """Creates a placeholder widget and starts a background download for the thumbnail."""
+        file_widget = FileItemWidget(path)
+        file_widget.download_requested.connect(self.handle_download_request)
+
+        # Keep track of the widget to update it later
+        self.file_widgets[path.name] = file_widget
+
+        # Add widget to grid
+        cols = 4
+        pos = self.grid_layout.count()
+        self.grid_layout.addWidget(file_widget, pos // cols, pos % cols)
+
+        # --- NEW: Thumbnail loading logic ---
+        # 1. Check if thumbnail is in our local disk cache
+        cached_thumb_path = self.cache_dir / f"{self.current_folder}_{path.name}"
+        if cached_thumb_path.exists():
+            pixmap = QPixmap(str(cached_thumb_path))
+            file_widget.set_thumbnail(pixmap)
+            return
+
+        # 2. If not cached, download from GitHub in the background
+        cfg = self.config_manager.load_config()
+        worker = ThumbnailWorker(
+            username=cfg.get("username"),
+            token=cfg.get("token"),
+            repo_name=self.current_folder,
+            file_name=path.name
+        )
+        worker.signals.finished.connect(self.on_thumbnail_loaded)
+        worker.signals.error.connect(lambda fname, err: print(f"Error loading {fname}: {err}"))
+        self.thread_pool.start(worker)
+
+    def on_thumbnail_loaded(self, filename: str, pixmap: QPixmap):
+        """Slot to receive the downloaded thumbnail and update the UI."""
+        # Find the widget corresponding to this filename
+        if filename in self.file_widgets:
+            self.file_widgets[filename].set_thumbnail(pixmap)
+
+        # Save the downloaded thumbnail to our cache for next time
+        if not pixmap.isNull():
+            cached_thumb_path = self.cache_dir / f"{self.current_folder}_{filename}"
+            pixmap.save(str(cached_thumb_path))
 
     def create_virtual_folder(self):
         folder_name, ok = QInputDialog.getText(self, "New Virtual Folder", "Enter folder name:")
