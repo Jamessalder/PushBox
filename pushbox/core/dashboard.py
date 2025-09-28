@@ -124,47 +124,6 @@ class DashboardPage(QWidget):
         except requests.exceptions.RequestException as e:
             QMessageBox.critical(self, "Failed to Open", f"An error occurred while downloading the file:\n{e}")
 
-        print(f"Download requested for {file_path.name} from repo {self.current_folder}")
-
-        cfg = self.config_manager.load_config()
-        username = cfg.get("username")
-        token = cfg.get("token")
-
-        if not username or not token:
-            QMessageBox.warning(self, "Auth Missing", "GitHub username & token are required.")
-            return
-
-        save_path, _ = QFileDialog.getSaveFileName(self, "Save File As...", file_path.name)
-        if not save_path:
-            return
-
-        repo_name = self.current_folder
-        file_name = file_path.name
-        headers = {"Authorization": f"token {token}"}
-        url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{file_name}"
-
-        try:
-
-            meta_response = requests.get(url, headers=headers)
-            meta_response.raise_for_status()
-            file_data = meta_response.json()
-            download_url = file_data.get("download_url")
-
-            if not download_url:
-                QMessageBox.critical(self, "Download Error", "Could not find a download URL for this file.")
-                return
-
-            content_response = requests.get(download_url, headers=headers, stream=True)
-            content_response.raise_for_status()
-
-            with open(save_path, 'wb') as f:
-                for chunk in content_response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-
-            QMessageBox.information(self, "Success", f"Successfully downloaded '{file_name}' to:\n{save_path}")
-
-        except requests.exceptions.RequestException as e:
-            QMessageBox.critical(self, "Download Failed", f"An error occurred:\n{e}")
 
     def load_folders_from_config(self):
         raw_folders = self.config_manager.data.get("virtual_folders", {})
