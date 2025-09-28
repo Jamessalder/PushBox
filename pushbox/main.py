@@ -70,8 +70,9 @@ class OnboardingPage(QWidget):
 
 # ---------- Auth ----------
 class AuthPage(QWidget):
-    def __init__(self, switch_to_dashboard):
+    def __init__(self, switch_to_dashboard, config_manager):
         super().__init__()
+        self.config_manager = config_manager
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -90,8 +91,13 @@ class AuthPage(QWidget):
         self.token.setPlaceholderText("Personal Access Token")
         self.token.setEchoMode(QLineEdit.EchoMode.Password)
 
+        # Load saved creds if available
+        cfg = self.config_manager.load_config()
+        self.username.setText(cfg.get("username", ""))
+        self.token.setText(cfg.get("token", ""))
+
         self.login_btn = QPushButton("Save & Continue")
-        self.login_btn.clicked.connect(switch_to_dashboard)
+        self.login_btn.clicked.connect(lambda: self.save_and_continue(switch_to_dashboard))
 
         layout.addWidget(title)
         layout.addWidget(subtitle)
@@ -102,6 +108,14 @@ class AuthPage(QWidget):
         layout.addWidget(self.login_btn)
 
         self.setLayout(layout)
+
+    def save_and_continue(self, switch_to_dashboard):
+        data = {
+            "username": self.username.text(),
+            "token": self.token.text()
+        }
+        self.config_manager.save_config(data)
+        switch_to_dashboard()
 
 
 # ---------- Backup ----------
