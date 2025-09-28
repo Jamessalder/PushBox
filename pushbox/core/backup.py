@@ -1,147 +1,168 @@
 import os
-import base64
 from pathlib import Path
 import requests
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QListWidget, QListWidgetItem, QFileDialog, \
-    QProgressBar, QMessageBox, QApplication
-from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt
-from config import ConfigManager
-
-APP_DIR = Path(os.getenv("LOCALAPPDATA")) / "PushBox"
-STAGING_DIR = APP_DIR / "staging"
-STAGING_DIR.mkdir(parents=True, exist_ok=True)
-
+from PyQt6.QtGui import QPixmap, QIcon
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QListWidget, QListWidgetItem, QFileDialog, QProgressBar, QMessageBox, QInputDialog, QApplication
+)
 
 class BackupPage(QWidget):
-    def __init__(self, config_manager: ConfigManager):
+    """Manages virtual folders and files inside them, ready for GitHub upload"""
+    def __init__(self, config_manager):
         super().__init__()
         self.config_manager = config_manager
+        layout = QHBoxLayout(self)
 
-        layout = QVBoxLayout(self)
+        # Left: Virtual Folders
+        left_v = QVBoxLayout()
+        left_v.addWidget(QLabel("Virtual Folders"))
 
-        # Buttons
-        self.new_folder_btn = QPushButton("+ New Folder")
-        self.add_files_btn = QPushButton("Add Files")
-        self.upload_btn = QPushButton("Upload Folder")
-        self.add_files_btn.setEnabled(False)
-        self.upload_btn.setEnabled(False)
-        layout.addWidget(self.new_folder_btn)
-        layout.addWidget(self.add_files_btn)
-        layout.addWidget(self.upload_btn)
-
-        # Folder & file views
-        layout.addWidget(QLabel("Folders (Staging)"))
         self.folder_list = QListWidget()
-        layout.addWidget(self.folder_list)
-        layout.addWidget(QLabel("Files in Selected Folder"))
-        self.file_view = QListWidget()
-        layout.addWidget(self.file_view)
+        left_v.addWidget(self.folder_list)
 
-        # Progress bar
+        self.new_folder_btn = QPushButton("+ New Virtual Folder")
+        self.add_file_btn = QPushButton("+ Add File(s)")
+        self.upload_btn = QPushButton("Push to GitHub")
+        self.upload_btn.setEnabled(False)
+        self.add_file_btn.setEnabled(False)
+
+        left_v.addWidget(self.new_folder_btn)
+        left_v.addWidget(self.add_file_btn)
+        left_v.addWidget(self.upload_btn)
+
+        # Right: Files inside selected virtual folder
+        right_v = QVBoxLayout()
+        right_v.addWidget(QLabel("Files in Virtual Folder"))
+
+        self.file_list = QListWidget()
+        right_v.addWidget(self.file_list)
+
         self.progress = QProgressBar()
-        layout.addWidget(self.progress)
+        self.progress.setValue(0)
+        right_v.addWidget(self.progress)
+
+        layout.addLayout(left_v, stretch=1)
+        layout.addLayout(right_v, stretch=2)
 
         self.setLayout(layout)
 
-        self.current_folder_name = None
-        self.current_folder_path = None
+        # Internal state
+        self.virtual_folders = {}  # folder_name -> list of file paths
+        self.current_folder = None
 
         # Hooks
-        self.new_folder_btn.clicked.connect(self.create_new_folder)
-        self.add_files_btn.clicked.connect(self.add_files_to_folder)
-        self.upload_btn.clicked.connect(self.upload_folder_to_github)
+        self.new_folder_btn.clicked.connect(self.create_virtual_folder)
+        self.add_file_btn.clicked.connect(self.add_files_to_folder)
+        self.upload_btn.clicked.connect(self.upload_folder)
         self.folder_list.currentTextChanged.connect(self.on_folder_selected)
 
-        self.load_staging_folders()
+        # Load saved virtual folders (local cache)
+        self.load_folders_from_config()
 
-    def create_new_folder(self):
-        folder_name, ok = QFileDialog.getSaveFileName(self, "New Folder Name (virtual)")
+    def load_folders_from_config(self):
+        self.virtual_folders = self.config_manager.data.get("virtual_folders", {})
+        for folder in self.virtual_folders.keys():
+            self.folder_list.addItem(folder)
+
+    def save_folders_to_config(self):
+        self.config_manager.data["virtual_folders"] = self.virtual_folders
+        self.config_manager.save_config()
+
+    def create_virtual_folder(self):
+        folder_name, ok = QInputDialog.getText(self, "New Virtual Folder", "Folder name:")
         if not ok or not folder_name.strip():
             return
-        folder_name = Path(folder_name).stem
-        folder_path = STAGING_DIR / folder_name
-        folder_path.mkdir(exist_ok=True)
+        folder_name = folder_name.strip()
+        if folder_name in self.virtual_folders:
+            QMessageBox.information(self, "Exists", "Folder already exists.")
+            return
+        self.virtual_folders[folder_name] = []
         self.folder_list.addItem(folder_name)
+        self.save_folders_to_config()
+
+    def on_folder_selected(self, folder_name):
+        self.current_folder = folder_name
+        self.file_list.clear()
+        if folder_name:
+            self.add_file_btn.setEnabled(True)
+            self.upload_btn.setEnabled(len(self.virtual_folders[folder_name]) > 0)
+            for file_path in self.virtual_folders[folder_name]:
+                self.add_file_item(file_path)
+        else:
+            self.add_file_btn.setEnabled(False)
+            self.upload_btn.setEnabled(False)
 
     def add_files_to_folder(self):
-        if not self.current_folder_path:
-            QMessageBox.warning(self, "Select Folder", "Select a folder first.")
+        if not self.current_folder:
             return
-        files, _ = QFileDialog.getOpenFileNames(self, "Select files to add")
+        files, _ = QFileDialog.getOpenFileNames(self, "Select files")
         if not files:
             return
         for f in files:
-            dest = self.current_folder_path / Path(f).name
-            if not dest.exists():
-                dest.write_bytes(Path(f).read_bytes())
-        self.load_folder_files(self.current_folder_path)
+            path = Path(f)
+            if path not in self.virtual_folders[self.current_folder]:
+                self.virtual_folders[self.current_folder].append(path)
+                self.add_file_item(path)
         self.upload_btn.setEnabled(True)
+        self.save_folders_to_config()
 
-    def upload_folder_to_github(self):
-        if not self.current_folder_name or not self.current_folder_path:
-            QMessageBox.warning(self, "No folder", "Select a folder first.")
+    def add_file_item(self, path):
+        lw_item = QListWidgetItem(path.name)
+        if path.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif"):
+            pixmap = QPixmap(str(path))
+            lw_item.setIcon(QIcon(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)))
+        self.file_list.addItem(lw_item)
+
+    def upload_folder(self):
+        if not self.current_folder:
+            return
+        files = self.virtual_folders.get(self.current_folder, [])
+        if not files:
+            QMessageBox.information(self, "Empty", "No files to upload.")
             return
 
         cfg = self.config_manager.load_config()
         username = cfg.get("username")
         token = cfg.get("token")
         if not username or not token:
-            QMessageBox.warning(self, "Credentials Missing", "Set GitHub username/token first.")
+            QMessageBox.warning(self, "Auth missing", "Enter GitHub username & token first.")
             return
 
-        repo_name = self.current_folder_name
-
-        # Create GitHub repo
-        url = "https://api.github.com/user/repos"
+        repo_name = self.current_folder  # using virtual folder name as repo
         headers = {"Authorization": f"token {token}"}
-        resp = requests.post(url, headers=headers, json={"name": repo_name, "private": True})
-        if resp.status_code not in (200, 201):
-            QMessageBox.critical(self, "GitHub Error", f"Could not create repo:\n{resp.text}")
-            return
 
-        # Upload files individually
-        files = list(self.current_folder_path.iterdir())
-        total = len(files)
-        for i, f in enumerate(files, 1):
-            with open(f, "rb") as fp:
-                content = base64.b64encode(fp.read()).decode()
-            path = f.name
-            api_url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{path}"
-            r = requests.put(api_url, headers=headers, json={"message": "PushBox backup", "content": content})
-            if r.status_code not in (200, 201):
-                QMessageBox.warning(self, "Upload Failed", f"Failed to upload {f.name}")
-            self.progress.setValue(int(i / total * 100))
+        # 1️⃣ Create repo if it doesn't exist
+        repo_url = f"https://api.github.com/repos/{username}/{repo_name}"
+        r = requests.get(repo_url, headers=headers)
+        if r.status_code == 404:
+            # Create repo
+            payload = {"name": repo_name, "private": False}
+            r_create = requests.post("https://api.github.com/user/repos", headers=headers, json=payload)
+            if r_create.status_code not in (201, 200):
+                QMessageBox.critical(self, "Error", f"Cannot create repo: {r_create.json()}")
+                return
+
+        # 2️⃣ Upload files individually
+        total_size = sum(f.stat().st_size for f in files)
+        uploaded = 0
+        self.progress.setValue(0)
+
+        for f in files:
+            content = f.read_bytes()
+            import base64
+            encoded = base64.b64encode(content).decode()
+            file_path = f.name  # root of repo
+            url = f"https://api.github.com/repos/{username}/{repo_name}/contents/{file_path}"
+            payload = {"message": f"Add {file_path}", "content": encoded}
+            r_file = requests.put(url, headers=headers, json=payload)
+            if r_file.status_code not in (201, 200):
+                QMessageBox.warning(self, "Upload failed", f"Failed to upload {file_path}: {r_file.json()}")
+            uploaded += f.stat().st_size
+            perc = int(uploaded / total_size * 100)
+            self.progress.setValue(perc)
             QApplication.processEvents()
+
         self.progress.setValue(100)
-        QMessageBox.information(self, "Backup Complete", f"Folder uploaded as repo: {repo_name}")
-
-        # Update local config
-        repos = cfg.get("repos", [])
-        if repo_name not in repos:
-            repos.append(repo_name)
-            cfg["repos"] = repos
-            self.config_manager.save_config(cfg)
-
-    def on_folder_selected(self, folder_name):
-        if not folder_name:
-            return
-        self.current_folder_name = folder_name
-        self.current_folder_path = STAGING_DIR / folder_name
-        self.add_files_btn.setEnabled(True)
-        self.upload_btn.setEnabled(True)
-        self.load_folder_files(self.current_folder_path)
-
-    def load_folder_files(self, folder_path: Path):
-        self.file_view.clear()
-        for f in folder_path.iterdir():
-            item = QListWidgetItem(f.name)
-            if f.suffix.lower() in [".png", ".jpg", ".jpeg", ".gif"]:
-                pixmap = QPixmap(str(f))
-                item.setIcon(QIcon(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio)))
-            self.file_view.addItem(item)
-
-    def load_staging_folders(self):
-        for folder in STAGING_DIR.iterdir():
-            if folder.is_dir():
-                self.folder_list.addItem(folder.name)
+        QMessageBox.information(self, "Backup complete", f"Virtual folder '{self.current_folder}' uploaded to GitHub.")
