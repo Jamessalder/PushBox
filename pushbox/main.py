@@ -16,7 +16,6 @@ from core.const import stylesheet
 from core.config import ConfigManager
 
 
-# ---------- Onboarding ----------
 class OnboardingPage(QWidget):
     def __init__(self, switch_to_auth, config_manager):
         super().__init__()
