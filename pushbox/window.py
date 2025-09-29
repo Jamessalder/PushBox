@@ -45,9 +45,17 @@ class MainWindow(QMainWindow):
 
         cfg = self.config_manager.load_config()
         onboarding_done = cfg.get("onboarding_done", False)
+
+        cfg = self.config_manager.load_config()
         token_enc = cfg.get("token", "")
-        token = base64.decode(token_enc)
-        print(token)
+
+        token = ""
+        if token_enc:
+            try:
+                token_bytes = base64.b64decode(token_enc + "===")  # pad if missing
+                token = token_bytes.decode("utf-8")
+            except Exception as e:
+                print("Token decode failed:", e)
 
         if not onboarding_done:
             self.mainStack.setCurrentIndex(0)
