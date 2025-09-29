@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton
 )
-
+import base64
 
 class AuthPage(QWidget):
     def __init__(self, switch_to_dashboard, config_manager):
@@ -50,7 +50,7 @@ class AuthPage(QWidget):
     def save_and_continue(self, switch_to_dashboard):
         data = {
             "username": self.username.text(),
-            "token": self.token.text(),
+            "token": (base64.encode(self.token.text())),
 
             "onboarding_done": self.config_manager.data.get("onboarding_done", False)
         }
