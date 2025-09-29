@@ -22,6 +22,13 @@ PushBox is a desktop application that lets you use your GitHub account as a free
 
 ---
 
+## Screenshots
+<img width="1327" height="908" alt="image" src="https://github.com/user-attachments/assets/2e00ca74-c1e7-44ff-9f93-d1adf27628f1" />
+<img width="1308" height="888" alt="image" src="https://github.com/user-attachments/assets/bbd153cf-2837-4ba0-9364-ac6fef95e2cc" />
+
+
+---
+
 ## How It Works
 
 PushBox simplifies the backup process by automating Git and GitHub API interactions.
@@ -64,14 +71,6 @@ Follow these instructions to get a local copy up and running.
     ```sh
     pip install -r requirements.txt
     ```
-    *(Note: You will need to create a `requirements.txt` file containing `PyQt6` and `requests`)*
-
-    **requirements.txt:**
-    ```
-    PyQt6
-    requests
-    ```
-
 ---
 
 ## Usage
