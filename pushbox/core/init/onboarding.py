@@ -65,7 +65,6 @@ class OnboardingPage(QWidget):
         if index < len(self.pages) - 1:
             self.stack.setCurrentIndex(index + 1)
         else:
-
             self.config_manager.data["onboarding_done"] = True
             self.config_manager.save_config()
             switch_to_auth()
