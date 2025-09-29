@@ -18,9 +18,6 @@ from pushbox.core.init.onboarding import OnboardingPage
 
 import base64
 
-
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
