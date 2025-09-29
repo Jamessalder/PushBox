@@ -50,7 +50,7 @@ class AuthPage(QWidget):
     def save_and_continue(self, switch_to_dashboard):
         data = {
             "username": self.username.text(),
-            "token": (base64.encode(self.token.text())),
+            "token": (base64.b64encode(self.token.text())),
 
             "onboarding_done": self.config_manager.data.get("onboarding_done", False)
         }
