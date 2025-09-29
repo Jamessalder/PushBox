@@ -45,7 +45,9 @@ class MainWindow(QMainWindow):
 
         cfg = self.config_manager.load_config()
         onboarding_done = cfg.get("onboarding_done", False)
-        token = cfg.get("token", "")
+        token_enc = cfg.get("token", "")
+        token = base64.decode(token_enc)
+        print(token)
 
         if not onboarding_done:
             self.mainStack.setCurrentIndex(0)
