@@ -34,7 +34,7 @@ class AuthPage(QWidget):
         self.username.setText(cfg.get("username", ""))
         self.token.setText(cfg.get("token", ""))
 
-        self.login_btn = QPushButton("Save & Continue")
+        self.login_btn = QPushButton("Save and Continue")
         self.login_btn.clicked.connect(lambda: self.save_and_continue(switch_to_dashboard))
 
         layout.addWidget(title)

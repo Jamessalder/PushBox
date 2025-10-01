@@ -57,7 +57,7 @@ Follow these instructions to get a local copy up and running.
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/your-username/pushbox.git](https://github.com/your-username/pushbox.git)
+    git clone https://github.com/rohankishore/PushBox.git
     cd pushbox
     ```
 
