@@ -44,7 +44,6 @@ class MainWindow(QMainWindow):
         cfg = self.config_manager.load_config()
         onboarding_done = cfg.get("onboarding_done", False)
 
-        cfg = self.config_manager.load_config()
         token_enc = cfg.get("token", "")
 
         token = ""
