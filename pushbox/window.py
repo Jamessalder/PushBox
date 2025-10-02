@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
 
         cfg = self.config_manager.load_config()
         onboarding_done = cfg.get("onboarding_done", False)
-        token_enc = keyring.get("pushbox", "token")
+        token_enc = keyring.get_password("pushbox", "token")
 
         token = ""
         if token_enc:
