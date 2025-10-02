@@ -17,6 +17,7 @@ from .core.settings import SettingsPage
 from pushbox.core.init.onboarding import OnboardingPage
 
 import base64
+import keyring
 
 
 class MainWindow(QMainWindow):
@@ -43,8 +44,7 @@ class MainWindow(QMainWindow):
 
         cfg = self.config_manager.load_config()
         onboarding_done = cfg.get("onboarding_done", False)
-
-        token_enc = cfg.get("token", "")
+        token_enc = keyring.get("pushbox", "token")
 
         token = ""
         if token_enc:
