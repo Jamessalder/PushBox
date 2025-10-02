@@ -1,4 +1,5 @@
 import sys
+import os
 
 from PyQt6.QtWidgets import (
     QMainWindow, QStackedWidget
@@ -19,6 +20,7 @@ from pushbox.core.init.onboarding import OnboardingPage
 import base64
 import keyring
 
+debug = False
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -71,6 +73,31 @@ class MainWindow(QMainWindow):
 
     def apply_styles(self):
         self.setStyleSheet(stylesheet)
+
+if debug:
+    import traceback
+
+    last_lines = []
+    stdlib_path = os.path.dirname(os.__file__)
+
+    def custom_excepthook(exc_type, exc_value, exc_traceback):
+        print("Uncaught exception:", exc_type, exc_value)
+        traceback.print_tb(exc_traceback)
+    
+    def tracefunc(frame, event, arg):
+        if event == "line":
+            code = frame.f_code
+            lineno = frame.f_lineno
+            filename = code.co_filename
+            if not filename.startswith(stdlib_path):
+                trace = f"{filename}:{lineno} - {code.co_name}"
+                print(trace)
+                last_lines.append(trace)
+        return tracefunc
+
+    sys.excepthook = custom_excepthook
+    sys.settrace(tracefunc)
+
 
 
 if __name__ == "__main__":
