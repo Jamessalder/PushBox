@@ -456,7 +456,7 @@ class DashboardPage(QWidget):
         cfg = self.config_manager.load_config()
         wfk_thread()
         global username, token
-        username, token, repo_name = username, token, self.current_backup_repo
+        repo_name = self.current_backup_repo
         headers = {"Authorization": f"token {token}"}
         files_to_upload = [Path(p) for p in local_files_str]
         total_size = sum(p.stat().st_size for p in files_to_upload if p.exists())
