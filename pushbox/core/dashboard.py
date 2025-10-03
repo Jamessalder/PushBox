@@ -12,6 +12,8 @@ from PyQt6.QtWidgets import (
 )
 from .signals.file_item import FileItemWidget
 import keyring
+import time
+import threading
 
 # Variables
 def get_auth_info():
@@ -20,12 +22,10 @@ def get_auth_info():
     token = token_bytes.decode("utf-8")
     username = keyring.get_password("pushbox", "username")
 
-try:
-    get_auth_info()
-except TypeError:
+def wait_for_keyring():
     while not keyring.get_password("pushbox", "token"):
         print("Waiting for authentication info to be set in keyring...")
-    
+        time.sleep(1)
     get_auth_info()
 
 # ==============================================================================
