@@ -223,6 +223,12 @@ class DashboardPage(QWidget):
         self.stack.addWidget(self.files_view)
         self.load_backups_from_github()
 
+        def update_current_backup_label(event=None):
+            if self.current_backup_repo:
+                self.label1.setText(f"Files in Backup {self.current_backup_repo}")
+        
+        self.stack.currentChanged.connect(update_current_backup_label)
+
     def _create_backups_view(self):
         container = QWidget()
         layout = QVBoxLayout(container)
