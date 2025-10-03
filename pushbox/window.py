@@ -98,8 +98,6 @@ if debug:
     sys.excepthook = custom_excepthook
     sys.settrace(tracefunc)
 
-
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
