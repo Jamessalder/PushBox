@@ -455,6 +455,7 @@ class DashboardPage(QWidget):
         # This can be refactored into its own UploaderWorker class for better UI responsiveness
         cfg = self.config_manager.load_config()
         wfk_thread()
+        global username, token
         username, token, repo_name = username, token, self.current_backup_repo
         headers = {"Authorization": f"token {token}"}
         files_to_upload = [Path(p) for p in local_files_str]
