@@ -16,13 +16,13 @@ import time
 import threading
 
 # Variables
-def get_auth_info():
+def get_auth_info(event=None):
     token_enc = keyring.get_password("pushbox", "token")
     token_bytes = base64.b64decode(token_enc + "===")  # pad if missing
     token = token_bytes.decode("utf-8")
     username = keyring.get_password("pushbox", "username")
 
-def wait_for_keyring():
+def wait_for_keyring(event=None):
     while not keyring.get_password("pushbox", "token"):
         print("Waiting for authentication info to be set in keyring...")
         time.sleep(1)
