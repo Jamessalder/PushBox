@@ -373,7 +373,8 @@ class DashboardPage(QWidget):
             signals = ThumbnailSignals()
             signals.finished.connect(self.on_thumbnail_loaded)
             signals.error.connect(lambda fname, err: print(f"Thumb error {fname}: {err}"))
-            worker = ThumbnailWorker(signals, username, token, "token", self.current_backup_repo,
+            global username, token
+            worker = ThumbnailWorker(signals, username, token, self.current_backup_repo,
                                      path.name)
             self.thread_pool.start(worker)
 
