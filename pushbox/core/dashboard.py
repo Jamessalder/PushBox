@@ -264,6 +264,8 @@ class DashboardPage(QWidget):
         back_btn = QPushButton("← Back to All Backups")
         back_btn.clicked.connect(self.show_backups_view)
         header.addWidget(back_btn)
+        self.label1 = QLabel(f"Files in Backup {self.current_backup_repo}")
+        header.addWidget(self.label1)
         header.addStretch()
         self.add_file_btn = QPushButton("+ Add File(s)")
         self.upload_btn = QPushButton("Push Changes to GitHub")
