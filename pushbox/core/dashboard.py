@@ -16,6 +16,9 @@ import time
 import threading
 
 # Variables
+username = None
+token = None
+
 def get_auth_info(event=None):
     global username, token
 
