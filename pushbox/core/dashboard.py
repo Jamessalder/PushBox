@@ -14,11 +14,19 @@ from .signals.file_item import FileItemWidget
 import keyring
 
 # Variables
-token_enc = keyring.get_password("pushbox", "token")
-token_bytes = base64.b64decode(token_enc + "===")  # pad if missing
-token = token_bytes.decode("utf-8")
-username = keyring.get_password("pushbox", "username")
+def get_auth_info():
+    token_enc = keyring.get_password("pushbox", "token")
+    token_bytes = base64.b64decode(token_enc + "===")  # pad if missing
+    token = token_bytes.decode("utf-8")
+    username = keyring.get_password("pushbox", "username")
 
+try:
+    get_auth_info()
+except TypeError:
+    while not keyring.get_password("pushbox", "token"):
+        print("Waiting for authentication info to be set in keyring...")
+    
+    get_auth_info()
 
 # ==============================================================================
 # == HELPER WIDGETS
@@ -209,6 +217,9 @@ class DashboardPage(QWidget):
         self.new_backup_btn = QPushButton("+ New Backup")
         self.new_backup_btn.clicked.connect(self.create_new_backup)
         header.addWidget(self.new_backup_btn)
+        reset_auth_btn = QPushButton("🔄️ Reset Authentication")
+        reset_auth_btn.clicked.connect(self.reset_auth)
+        header.addWidget(reset_auth_btn)
         layout.addLayout(header)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -218,6 +229,15 @@ class DashboardPage(QWidget):
         scroll.setWidget(self.backups_grid_widget)
         layout.addWidget(scroll)
         return container
+    
+    def reset_auth(self):
+        confirm = QMessageBox.question(self, "Confirm Reset", "Are you sure you want to reset authentication? This will quit the program; you will need to reopen the application to re-authenticate.")
+        if confirm == QMessageBox.StandardButton.Yes:
+            keyring.delete_password("pushbox", "token")
+            keyring.delete_password("pushbox", "username")
+            self.config_manager.data["onboarding_done"] = False
+            self.config_manager.save_config()
+            QApplication.quit()
 
     def _create_files_view(self):
         container = QWidget()
