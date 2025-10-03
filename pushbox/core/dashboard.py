@@ -38,10 +38,11 @@ thread = None
 def wfk_thread(event=None):
     global thread
 
-    if thread is None or not thread.is_alive():
-        thread = threading.Thread(target=wait_for_keyring)
-        thread.daemon = True
-        thread.start()
+    if not keyring.get_password("pushbox", "token"):
+        if thread is None or not thread.is_alive():
+            thread = threading.Thread(target=wait_for_keyring)
+            thread.daemon = True
+            thread.start()
 
 # ==============================================================================
 # == HELPER WIDGETS
@@ -316,7 +317,7 @@ class DashboardPage(QWidget):
         signals = WorkerSignals()
         signals.finished.connect(self.on_files_loaded)
         signals.error.connect(lambda e: QMessageBox.critical(self, "Error", f"Could not fetch files:\n{e}"))
-        worker = FileListWorker(signals, username, token, "token", repo_name)
+        worker = FileListWorker(signals, username, token, repo_name)
         self.thread_pool.start(worker)
 
     def on_files_loaded(self, files_info):
