@@ -17,6 +17,8 @@ import threading
 
 # Variables
 def get_auth_info(event=None):
+    global username, token
+
     token_enc = keyring.get_password("pushbox", "token")
     token_bytes = base64.b64decode(token_enc + "===")  # pad if missing
     token = token_bytes.decode("utf-8")
@@ -27,6 +29,16 @@ def wait_for_keyring(event=None):
         print("Waiting for authentication info to be set in keyring...")
         time.sleep(1)
     get_auth_info()
+
+thread = None
+
+def wfk_thread(event=None):
+    global thread
+
+    if thread is None or not thread.is_alive():
+        thread = threading.Thread(target=wait_for_keyring)
+        thread.daemon = True
+        thread.start()
 
 # ==============================================================================
 # == HELPER WIDGETS
@@ -279,6 +291,7 @@ class DashboardPage(QWidget):
 
     def load_backups_from_github(self):
         cfg = self.config_manager.load_config()
+        wfk_thread()
         signals = WorkerSignals()
         signals.finished.connect(self.on_backups_loaded)
         signals.error.connect(lambda e: QMessageBox.critical(self, "Error", f"Could not fetch backups:\n{e}"))
@@ -296,6 +309,7 @@ class DashboardPage(QWidget):
 
     def load_files_from_github(self, repo_name):
         cfg = self.config_manager.load_config()
+        wfk_thread()
         signals = WorkerSignals()
         signals.finished.connect(self.on_files_loaded)
         signals.error.connect(lambda e: QMessageBox.critical(self, "Error", f"Could not fetch files:\n{e}"))
@@ -349,6 +363,7 @@ class DashboardPage(QWidget):
                 file_widget.set_thumbnail(QPixmap(str(cached_thumb_path)))
                 return
             cfg = self.config_manager.load_config()
+            wfk_thread()
             signals = ThumbnailSignals()
             signals.finished.connect(self.on_thumbnail_loaded)
             signals.error.connect(lambda fname, err: print(f"Thumb error {fname}: {err}"))
@@ -368,6 +383,7 @@ class DashboardPage(QWidget):
         if ok and name:
             repo_name = "backup-" + name.lower().replace(" ", "-")
             cfg = self.config_manager.load_config()
+            wfk_thread()
             signals = WorkerSignals()
             signals.finished.connect(self.on_repo_created)
             signals.error.connect(lambda e: QMessageBox.critical(self, "Error", f"Could not create repo:\n{e}"))
@@ -404,6 +420,7 @@ class DashboardPage(QWidget):
             return
         save_path = self.temp_dir / file_path.name
         cfg = self.config_manager.load_config()
+        wfk_thread()
         signals = WorkerSignals()
         signals.finished.connect(lambda path: QDesktopServices.openUrl(QUrl.fromLocalFile(path)))
         signals.error.connect(lambda e: QMessageBox.critical(self, "Error", f"Failed to open file:\n{e}"))
@@ -415,6 +432,7 @@ class DashboardPage(QWidget):
         save_path, _ = QFileDialog.getSaveFileName(self, "Save File As...", file_path.name)
         if not save_path: return
         cfg = self.config_manager.load_config()
+        wfk_thread()
         signals = WorkerSignals()
         signals.finished.connect(lambda path: QMessageBox.information(self, "Success", f"File saved to {path}"))
         signals.error.connect(lambda e: QMessageBox.critical(self, "Error", f"Failed to download file:\n{e}"))
@@ -430,6 +448,7 @@ class DashboardPage(QWidget):
             return
         # This can be refactored into its own UploaderWorker class for better UI responsiveness
         cfg = self.config_manager.load_config()
+        wfk_thread()
         username, token, repo_name = username, token, "token", self.current_backup_repo
         headers = {"Authorization": f"token {token}"}
         files_to_upload = [Path(p) for p in local_files_str]
