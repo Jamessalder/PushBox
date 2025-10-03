@@ -38,7 +38,9 @@ thread = None
 def wfk_thread(event=None):
     global thread
 
-    if not keyring.get_password("pushbox", "token"):
+    if keyring.get_password("pushbox", "token"):
+        get_auth_info()
+    else:
         if thread is None or not thread.is_alive():
             thread = threading.Thread(target=wait_for_keyring)
             thread.daemon = True
