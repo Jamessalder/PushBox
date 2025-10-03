@@ -431,7 +431,8 @@ class DashboardPage(QWidget):
         signals = WorkerSignals()
         signals.finished.connect(lambda path: QDesktopServices.openUrl(QUrl.fromLocalFile(path)))
         signals.error.connect(lambda e: QMessageBox.critical(self, "Error", f"Failed to open file:\n{e}"))
-        worker = FileDownloaderWorker(signals, username, token, "token", self.current_backup_repo,
+        global username, token
+        worker = FileDownloaderWorker(signals, username, token, self.current_backup_repo,
                                       file_path.name, save_path)
         self.thread_pool.start(worker)
 
@@ -443,7 +444,8 @@ class DashboardPage(QWidget):
         signals = WorkerSignals()
         signals.finished.connect(lambda path: QMessageBox.information(self, "Success", f"File saved to {path}"))
         signals.error.connect(lambda e: QMessageBox.critical(self, "Error", f"Failed to download file:\n{e}"))
-        worker = FileDownloaderWorker(signals, username, token, "token", self.current_backup_repo,
+        global username, token
+        worker = FileDownloaderWorker(signals, username, token, self.current_backup_repo,
                                       file_path.name, Path(save_path))
         self.thread_pool.start(worker)
 
